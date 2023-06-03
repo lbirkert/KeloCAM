@@ -1,6 +1,12 @@
-# KeloCAM
-
-`Cura&trade; for your CNC`
+```
+  _  __    _        _____          __  __ 
+ | |/ /   | |      / ____|   /\   |  \/  |
+ | ' / ___| | ___ | |       /  \  | \  / |
+ |  < / _ \ |/ _ \| |      / /\ \ | |\/| |
+ | . \  __/ | (_) | |____ / ____ \| |  | |
+ |_|\_\___|_|\___/ \_____/_/    \_\_|  |_|
+           Cura for your CNC
+```
 
 [![dependency status](https://deps.rs/repo/github/emilk/eframe_template/status.svg)](https://deps.rs/repo/github/GamePowerX/KeloCAM)
 [![Build Status](https://github.com/GamePowerX/KeloCAM/workflows/CI/badge.svg)](https://github.com/GamePowerX/KeloCAM/actions?workflow=CI)
