@@ -19,7 +19,6 @@ eframe = { version = "0.21.0", default-features = false, features = [
 serde = { version = "1", features = ["derive"] }
 egui_file = "0.8.2"
 serialport = "4.2.0"
-dxf = "0.5.0"
 stl = "0.2.1"
 cgmath = "0.18.0"
 bytemuck = { version = "1.13.1", features = ["derive"] }
