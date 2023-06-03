@@ -106,12 +106,12 @@ impl Camera {
 impl Default for Camera {
     fn default() -> Self {
         Self {
-            position: Point3::new(0.0, 0.0, -2.0),
+            position: Point3::new(0.0, 0.0, -10.0),
             pitch: Deg(0.0).into(),
-            yaw: Deg(0.0).into(),
+            yaw: Deg(90.0).into(),
 
             aspect: 1.0,
-            fovy: Deg(50.0).into(),
+            fovy: Deg(90.0).into(),
             znear: 0.1,
             zfar: 100.0,
 

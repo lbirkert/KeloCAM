@@ -28,7 +28,7 @@ impl Viewer {
 
         let object_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("object"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("./shaders/object.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("./shaders/grid.wgsl").into()),
         });
 
         let object_pipeline_layout =
