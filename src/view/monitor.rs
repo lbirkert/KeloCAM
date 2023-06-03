@@ -1,4 +1,4 @@
-use crate::device::{Device, DeviceInfo, get_devices};
+use crate::device::{get_devices, Device, DeviceInfo};
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
@@ -21,13 +21,17 @@ pub struct MonitorView {
 impl MonitorView {
     pub fn show(self: &mut Self, ui: &mut egui::Ui) {
         ui.heading("MonitorView");
-       
+
         if let Some(ref devices) = self.devices {
             for device in devices {
-                if ui.selectable_label(Some(device.clone())
-                    == self.selected, device.descriptor.as_str())
-                    .clicked() {
-                        self.selected = Some(device.clone());
+                if ui
+                    .selectable_label(
+                        Some(device.clone()) == self.selected,
+                        device.descriptor.as_str(),
+                    )
+                    .clicked()
+                {
+                    self.selected = Some(device.clone());
                 }
             }
         } else {
@@ -37,7 +41,7 @@ impl MonitorView {
                 'label: {
                     for device in &devices {
                         if &device == &selected {
-                            break 'label; 
+                            break 'label;
                         }
                     }
                     self.selected = None;
@@ -62,7 +66,7 @@ impl MonitorView {
 
         if let Some(device) = self.device.as_mut() {
             ui.add(egui::TextEdit::singleline(&mut self.command).hint_text("Enter command"));
-            
+
             if ui.button("Send").clicked() {
                 self.log += self.command.as_str();
                 self.log += "\n";
@@ -75,8 +79,8 @@ impl MonitorView {
                 .show_viewport(ui, |ui, _| {
                     ui.add(egui::TextEdit::multiline(&mut self.log.as_str()));
                 });
-            
-            self.log += &mut device.endpoint.read().join("\n"); 
+
+            self.log += &mut device.endpoint.read().join("\n");
         }
     }
 }
@@ -84,12 +88,11 @@ impl MonitorView {
 impl Default for MonitorView {
     fn default() -> Self {
         Self {
-             devices: None,
-             selected: None,
-             device: None,
-             command: String::new(),
-             log: String::new(),
+            devices: None,
+            selected: None,
+            device: None,
+            command: String::new(),
+            log: String::new(),
         }
     }
 }
-

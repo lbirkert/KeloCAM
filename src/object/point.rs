@@ -21,7 +21,7 @@ impl Point2D {
     pub fn min(self, b: Self) -> Self {
         Point2D::from(self.x.min(b.x), self.y.min(b.y))
     }
-    
+
     pub fn max(self, b: Self) -> Self {
         Point2D::from(self.x.max(b.x), self.y.max(b.y))
     }
@@ -33,11 +33,11 @@ impl Point2D {
     pub fn len(self) -> f64 {
         (self.x * self.x + self.y * self.y).sqrt()
     }
-    
+
     pub fn dist_approx(self, b: Self) -> f64 {
         (self - b).len_approx()
     }
-    
+
     pub fn len_approx(self) -> f64 {
         self.x.abs() + self.y.abs()
     }
@@ -53,7 +53,7 @@ impl Point2D {
 
 impl ops::Add for Point2D {
     type Output = Self;
-    
+
     fn add(self, b: Self) -> Self {
         Point2D::from(self.x + b.x, self.y + b.y)
     }
@@ -61,7 +61,7 @@ impl ops::Add for Point2D {
 
 impl ops::Add<&Point2D> for Point2D {
     type Output = Self;
-    
+
     fn add(self, b: &Self) -> Self {
         Point2D::from(self.x + b.x, self.y + b.y)
     }
@@ -69,7 +69,7 @@ impl ops::Add<&Point2D> for Point2D {
 
 impl ops::Sub for Point2D {
     type Output = Self;
-    
+
     fn sub(self, b: Self) -> Self {
         Point2D::from(self.x - b.x, self.y - b.y)
     }
@@ -77,7 +77,7 @@ impl ops::Sub for Point2D {
 
 impl ops::Sub<&Point2D> for Point2D {
     type Output = Self;
-    
+
     fn sub(self, b: &Self) -> Self {
         Point2D::from(self.x - b.x, self.y - b.y)
     }
@@ -85,7 +85,7 @@ impl ops::Sub<&Point2D> for Point2D {
 
 impl ops::Mul for Point2D {
     type Output = Self;
-    
+
     fn mul(self, b: Self) -> Self {
         Point2D::from(self.x * b.x, self.y * b.y)
     }
@@ -93,12 +93,11 @@ impl ops::Mul for Point2D {
 
 impl ops::Mul<&Point2D> for Point2D {
     type Output = Self;
-    
+
     fn mul(self, b: &Self) -> Self {
         Point2D::from(self.x * b.x, self.y * b.y)
     }
 }
-
 
 impl ops::Mul<f64> for Point2D {
     type Output = Self;
@@ -142,7 +141,7 @@ impl Point3D {
     pub fn min(self, b: Self) -> Self {
         Point3D::from(self.x.min(b.x), self.y.min(b.y), self.z.min(b.z))
     }
-    
+
     pub fn max(self, b: Self) -> Self {
         Point3D::from(self.x.max(b.x), self.y.max(b.y), self.z.min(b.z))
     }
@@ -154,11 +153,11 @@ impl Point3D {
     pub fn len(self) -> f64 {
         (self.x * self.x + self.y * self.y + self.z * self.z).sqrt()
     }
-    
+
     pub fn dist_approx(self, b: Self) -> f64 {
         (self - b).len_approx()
     }
-    
+
     pub fn len_approx(self) -> f64 {
         self.x.abs() + self.y.abs() + self.z.abs()
     }
@@ -174,7 +173,7 @@ impl Point3D {
 
 impl ops::Add for Point3D {
     type Output = Self;
-    
+
     fn add(self, b: Self) -> Self {
         Point3D::from(self.x + b.x, self.y + b.y, self.z + b.z)
     }
@@ -182,7 +181,7 @@ impl ops::Add for Point3D {
 
 impl ops::Add<&Point3D> for Point3D {
     type Output = Self;
-    
+
     fn add(self, b: &Self) -> Self {
         Point3D::from(self.x + b.x, self.y + b.y, self.z + b.z)
     }
@@ -190,7 +189,7 @@ impl ops::Add<&Point3D> for Point3D {
 
 impl ops::Sub for Point3D {
     type Output = Self;
-    
+
     fn sub(self, b: Self) -> Self {
         Point3D::from(self.x - b.x, self.y - b.y, self.z - b.z)
     }
@@ -198,7 +197,7 @@ impl ops::Sub for Point3D {
 
 impl ops::Sub<&Point3D> for Point3D {
     type Output = Self;
-    
+
     fn sub(self, b: &Self) -> Self {
         Point3D::from(self.x - b.x, self.y - b.y, self.z - b.z)
     }
@@ -206,7 +205,7 @@ impl ops::Sub<&Point3D> for Point3D {
 
 impl ops::Mul for Point3D {
     type Output = Self;
-    
+
     fn mul(self, b: Self) -> Self {
         Point3D::from(self.x * b.x, self.y * b.y, self.z * self.z)
     }
@@ -214,12 +213,11 @@ impl ops::Mul for Point3D {
 
 impl ops::Mul<&Point3D> for Point3D {
     type Output = Self;
-    
+
     fn mul(self, b: &Self) -> Self {
         Point3D::from(self.x * b.x, self.y * b.y, self.z * self.z)
     }
 }
-
 
 impl ops::Mul<f64> for Point3D {
     type Output = Self;

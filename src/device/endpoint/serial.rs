@@ -1,5 +1,5 @@
-use serialport::{SerialPort, SerialPortInfo, SerialPortType};
 use crate::device::endpoint::Endpoint;
+use serialport::{SerialPort, SerialPortInfo, SerialPortType};
 
 use std::time::Duration;
 
@@ -18,7 +18,7 @@ impl SerialEndpoint {
             port,
             baud_rate: baud_rate,
 
-            serial_port: None
+            serial_port: None,
         }
     }
 
@@ -26,9 +26,11 @@ impl SerialEndpoint {
         match serialport::available_ports() {
             Ok(serial_ports) => {
                 println!("{:#?}", serial_ports);
-                serial_ports.into_iter()
-                .filter(|port| matches!(port.port_type, SerialPortType::UsbPort(_))).collect()
-            },
+                serial_ports
+                    .into_iter()
+                    .filter(|port| matches!(port.port_type, SerialPortType::UsbPort(_)))
+                    .collect()
+            }
             Err(_) => Vec::new(),
         }
     }
@@ -40,10 +42,12 @@ impl Endpoint for SerialEndpoint {
             .data_bits(serialport::DataBits::Eight)
             .stop_bits(serialport::StopBits::One)
             .parity(serialport::Parity::None)
-            .timeout(Duration::from_millis(1)).open() {
+            .timeout(Duration::from_millis(1))
+            .open()
+        {
             Ok(serial_port) => Some(serial_port),
             Err(_) => return Err("Error while opening device".into()),
-        }; 
+        };
 
         Ok(())
     }
@@ -57,9 +61,9 @@ impl Endpoint for SerialEndpoint {
 
             match String::from_utf8(byte_buffer) {
                 Ok(s) => {
-                    return s.split("\r\n").map(|s| String::from(s)).collect();        
-                },
-                Err(_) => {},
+                    return s.split("\r\n").map(|s| String::from(s)).collect();
+                }
+                Err(_) => {}
             }
         }
 
@@ -69,10 +73,10 @@ impl Endpoint for SerialEndpoint {
     fn write(&mut self, buf: &[u8]) -> Result<(), String> {
         match self.serial_port.as_mut().expect("Not open").write(buf) {
             Ok(_) => Ok(()),
-            Err(_) => Err("Couldn't write".into())
+            Err(_) => Err("Couldn't write".into()),
         }
     }
-    
+
     fn close(&mut self) -> Result<(), String> {
         // TODO: find out how to close
         Ok(())

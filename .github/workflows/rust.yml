@@ -19,6 +19,7 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+      - run: sudo apt-get install libudev-dev
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -35,6 +36,7 @@ jobs:
           toolchain: stable
           target: wasm32-unknown-unknown
           override: true
+      - run: sudo apt-get install libudev-dev
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -50,7 +52,7 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      - run: sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
+      - run: sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev libudev-dev
       - uses: actions-rs/cargo@v1
         with:
           command: test
@@ -83,6 +85,7 @@ jobs:
           toolchain: stable
           override: true
           components: clippy
+      - run: sudo apt-get install libudev-dev
       - uses: actions-rs/cargo@v1
         with:
           command: clippy

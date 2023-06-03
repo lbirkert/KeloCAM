@@ -28,7 +28,7 @@ fn main() {
 
     wasm_bindgen_futures::spawn_local(async {
         eframe::start_web(
-            "the_canvas_id", // hardcode it
+            "canvas", // hardcode it
             web_options,
             Box::new(|cc| Box::new(kelocam::KeloApp::new(cc))),
         )

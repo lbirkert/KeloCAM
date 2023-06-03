@@ -136,6 +136,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "approx"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f2a05fd1bd10b2527e20a2cd32d8873d115b8b39fe219ee25f42a8aca6ba278"
+dependencies = [
+ "num-traits 0.2.15",
+]
+
+[[package]]
 name = "arboard"
 version = "3.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -261,9 +270,9 @@ checksum = "0d261e256854913907f67ed06efbc3338dfe6179796deefc1ff763fc1aee5535"
 
 [[package]]
 name = "bytemuck"
-version = "1.13.0"
+version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c041d3eab048880cb0b86b256447da3f18859a163c3b8d8893f4e6368abe6393"
+checksum = "17febce684fd15d89027105661fec94afb475cb995fbc59d2865198446ba2eea"
 dependencies = [
  "bytemuck_derive",
 ]
@@ -278,6 +287,12 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "byteorder"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96c8b41881888cc08af32d47ac4edd52bc7fa27fef774be47a92443756451304"
 
 [[package]]
 name = "byteorder"
@@ -330,6 +345,16 @@ name = "cfg_aliases"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd16c4719339c4530435d38e511904438d07cce7950afa3718a84ac36c10e89e"
+
+[[package]]
+name = "cgmath"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a98d30140e3296250832bbaaff83b27dcd6fa3cc70fb6f1f3e5c9c0023b5317"
+dependencies = [
+ "approx",
+ "num-traits 0.2.15",
+]
 
 [[package]]
 name = "chrono"
@@ -517,7 +542,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73770f8e1fe7d64df17ca66ad28994a0a623ea497fa69486e14984e715c5d174"
 dependencies = [
  "adler32",
- "byteorder",
+ "byteorder 1.4.3",
 ]
 
 [[package]]
@@ -588,7 +613,7 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ea9003fc9926c63a280a37f9b0ea318cc40a5da4f8ca0025beae8f4ff22082e2"
 dependencies = [
- "byteorder",
+ "byteorder 1.4.3",
  "chrono",
  "encoding_rs",
  "enum_primitive",
@@ -802,7 +827,7 @@ version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c31b6d751ae2c7f11320402d34e41349dd1016f8d5d45e48c4312bc8625af50c"
 dependencies = [
- "byteorder",
+ "byteorder 1.4.3",
 ]
 
 [[package]]
@@ -822,8 +847,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c05aeb6a22b8f62540c194aac980f2115af067bfe15a0734d7277a768d396b31"
 dependencies = [
  "cfg-if",
+ "js-sys",
  "libc",
  "wasi 0.11.0+wasi-snapshot-preview1",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -985,7 +1012,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "24ffcb7e7244a9bf19d35bf2883b9c080c4ced3c07a9895572178cdb8f13f6a1"
 dependencies = [
  "bytemuck",
- "byteorder",
+ "byteorder 1.4.3",
  "color_quant",
  "gif",
  "jpeg-decoder",
@@ -1079,13 +1106,17 @@ dependencies = [
 name = "kelocam"
 version = "0.1.0"
 dependencies = [
+ "bytemuck",
+ "cgmath",
  "console_error_panic_hook",
  "dxf",
  "eframe",
  "egui",
  "egui_file",
+ "getrandom",
  "serde",
  "serialport",
+ "stl",
  "tracing-subscriber",
  "tracing-wasm",
  "wasm-bindgen-futures",
@@ -1977,6 +2008,15 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
+name = "stl"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "466e72b3a9258f51f0562a01f2aea3717fb71d9997f4050c65c251a623926e12"
+dependencies = [
+ "byteorder 0.4.2",
+]
 
 [[package]]
 name = "str-buf"

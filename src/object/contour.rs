@@ -1,19 +1,32 @@
-use crate::object::{point::Point2D};
+use crate::object::point::Point2D;
 use std::collections::HashMap;
 
 type BoundingBox2D = (Point2D, Point2D);
 
 #[derive(Debug, Clone)]
 pub enum Segment {
-    Line { start: Point2D, end: Point2D },
-    Arc { center: Point2D, rad: f64, start: f64, end: f64 },
+    Line {
+        start: Point2D,
+        end: Point2D,
+    },
+    Arc {
+        center: Point2D,
+        rad: f64,
+        start: f64,
+        end: f64,
+    },
 }
 
 impl Segment {
     pub fn bounding_box(&self) -> BoundingBox2D {
         match self {
             Self::Line { start, end } => (start.min(*end), start.max(*end)),
-            Self::Arc { center, start, end, rad } => {
+            Self::Arc {
+                center,
+                start,
+                end,
+                rad,
+            } => {
                 const HALF_PI: f64 = std::f64::consts::PI / 2.0;
 
                 let start_field = (start / HALF_PI).floor();
@@ -21,14 +34,34 @@ impl Segment {
 
                 let fields = end_field - start_field;
 
-                let max_y: f64 = if fields >= 4.0-(start_field-0.0).rem_euclid(4.0) || fields < -(start_field-0.0).rem_euclid(4.0)
-                    { 1.0 } else { start.cos().max(end.cos()) };
-                let max_x: f64 = if fields >= 4.0-(start_field-1.0).rem_euclid(4.0) || fields < -(start_field-1.0).rem_euclid(4.0)
-                    { 1.0 } else { start.sin().max(end.sin()) };
-                let min_y: f64 = if fields >= 4.0-(start_field-2.0).rem_euclid(4.0) || fields < -(start_field-2.0).rem_euclid(4.0)
-                    { -1.0 } else { start.cos().min(end.cos()) };
-                let min_x: f64 = if fields >= 4.0-(start_field-3.0).rem_euclid(4.0) || fields < -(start_field-3.0).rem_euclid(4.0)
-                    { -1.0 } else { start.sin().min(end.sin()) };
+                let max_y: f64 = if fields >= 4.0 - (start_field - 0.0).rem_euclid(4.0)
+                    || fields < -(start_field - 0.0).rem_euclid(4.0)
+                {
+                    1.0
+                } else {
+                    start.cos().max(end.cos())
+                };
+                let max_x: f64 = if fields >= 4.0 - (start_field - 1.0).rem_euclid(4.0)
+                    || fields < -(start_field - 1.0).rem_euclid(4.0)
+                {
+                    1.0
+                } else {
+                    start.sin().max(end.sin())
+                };
+                let min_y: f64 = if fields >= 4.0 - (start_field - 2.0).rem_euclid(4.0)
+                    || fields < -(start_field - 2.0).rem_euclid(4.0)
+                {
+                    -1.0
+                } else {
+                    start.cos().min(end.cos())
+                };
+                let min_x: f64 = if fields >= 4.0 - (start_field - 3.0).rem_euclid(4.0)
+                    || fields < -(start_field - 3.0).rem_euclid(4.0)
+                {
+                    -1.0
+                } else {
+                    start.sin().min(end.sin())
+                };
 
                 (
                     Point2D::from(min_x, min_y) * rad + center,
@@ -41,14 +74,18 @@ impl Segment {
     pub fn start(&self) -> Point2D {
         match self {
             Self::Line { start, .. } => start.clone(),
-            Self::Arc { center, start, rad, .. } => Point2D::from(start.sin(), start.cos()) * rad + center,
+            Self::Arc {
+                center, start, rad, ..
+            } => Point2D::from(start.sin(), start.cos()) * rad + center,
         }
-    }    
+    }
 
     pub fn end(&self) -> Point2D {
         match self {
             Self::Line { end, .. } => end.clone(),
-            Self::Arc { center, end, rad, .. } => Point2D::from(end.sin(), end.cos()) * rad + center,
+            Self::Arc {
+                center, end, rad, ..
+            } => Point2D::from(end.sin(), end.cos()) * rad + center,
         }
     }
 }
@@ -79,7 +116,7 @@ impl Contour {
             } else {
                 min = Some(bounding.0);
             }
-            
+
             if let Some(ref maxs) = max {
                 max = Some(maxs.max(bounding.1));
             } else {
@@ -101,24 +138,21 @@ impl Contour {
                 let mut next = None;
                 for b_hash in 0..segments.len() {
                     let b = &segments[b_hash];
-                    
+
                     let b_start = &b.start();
-                    
+
                     if a_end == b_start {
                         next = Some(b_hash);
                         break;
                     }
                 }
 
-                (a_hash, ContourSegment {
-                    segment: a,
-                    next
-                })
+                (a_hash, ContourSegment { segment: a, next })
             })
             .collect();
-    
+
         let mut contours = Vec::new();
-        
+
         // Create contours
         for cseg in 0..csegments.len() {
             let mut segments = Vec::new();
@@ -126,12 +160,9 @@ impl Contour {
             if let Some(mut current) = csegments.remove(&cseg) {
                 while let Some(next) = current.next {
                     segments.push(current.segment);
-                    
+
                     if next == cseg {
-                        contours.push(Contour {
-                            index: 0,
-                            segments,
-                        });
+                        contours.push(Contour { index: 0, segments });
 
                         break;
                     }
@@ -167,4 +198,3 @@ impl Contour {
             .collect()
     }
 }
-
