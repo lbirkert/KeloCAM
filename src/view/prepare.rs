@@ -1,7 +1,6 @@
 use crate::widget::viewer::Viewer;
 
-#[derive(serde::Deserialize, serde::Serialize, Default)]
-#[serde(default)]
+#[derive(Default)]
 pub struct PrepareView {}
 
 impl PrepareView {
