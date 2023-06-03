@@ -8,7 +8,7 @@
            Cura for your CNC
 ```
 
-[![dependency status](https://deps.rs/repo/github/emilk/eframe_template/status.svg)](https://deps.rs/repo/github/GamePowerX/KeloCAM)
+[![dependency status](https://deps.rs/repo/github/GamePowerX/KeloCAM/status.svg)](https://deps.rs/repo/github/GamePowerX/KeloCAM)
 [![Build Status](https://github.com/GamePowerX/KeloCAM/workflows/CI/badge.svg)](https://github.com/GamePowerX/KeloCAM/actions?workflow=CI)
 
 *Note* KeloCAM is in very early stages.
