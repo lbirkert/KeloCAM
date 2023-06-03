@@ -73,7 +73,7 @@ impl Segment {
 
     pub fn start(&self) -> Point2D {
         match self {
-            Self::Line { start, .. } => start.clone(),
+            Self::Line { start, .. } => *start,
             Self::Arc {
                 center, start, rad, ..
             } => Point2D::from(start.sin(), start.cos()) * rad + center,
@@ -82,7 +82,7 @@ impl Segment {
 
     pub fn end(&self) -> Point2D {
         match self {
-            Self::Line { end, .. } => end.clone(),
+            Self::Line { end, .. } => *end,
             Self::Arc {
                 center, end, rad, ..
             } => Point2D::from(end.sin(), end.cos()) * rad + center,
@@ -124,7 +124,7 @@ impl Contour {
             }
         }
 
-        return (min.unwrap(), max.unwrap());
+        (min.unwrap(), max.unwrap())
     }
 
     pub fn find(segments: Vec<Segment>) -> Vec<Self> {
@@ -136,9 +136,7 @@ impl Contour {
                 let a_end = &a.end();
 
                 let mut next = None;
-                for b_hash in 0..segments.len() {
-                    let b = &segments[b_hash];
-
+                for (b_hash, b) in segments.iter().enumerate() {
                     let b_start = &b.start();
 
                     if a_end == b_start {
@@ -184,8 +182,8 @@ impl Contour {
             .map(|mut a| {
                 let a_b = &a.bounding_box();
 
-                for b_i in 0..contours.len() {
-                    let b_b = contours[b_i].bounding_box();
+                for b in &contours {
+                    let b_b = b.bounding_box();
 
                     // Check if bounding box of a is contained inside bounding box of a
                     if b_b.0.smaller(a_b.0) && b_b.1.greater(a_b.1) {

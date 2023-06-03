@@ -1,25 +1,17 @@
 use crate::device::{get_devices, Device, DeviceInfo};
 
-#[derive(serde::Deserialize, serde::Serialize)]
-#[serde(default)]
+#[derive(Default)]
 pub struct MonitorView {
-    #[serde(skip)]
     devices: Option<Vec<DeviceInfo>>,
-
-    #[serde(skip)]
     selected: Option<DeviceInfo>,
-
-    #[serde(skip)]
     device: Option<Device>,
 
     command: String,
-
-    #[serde(skip)]
     log: String,
 }
 
 impl MonitorView {
-    pub fn show(self: &mut Self, ui: &mut egui::Ui) {
+    pub fn show(&mut self, ui: &mut egui::Ui) {
         ui.heading("MonitorView");
 
         if let Some(ref devices) = self.devices {
@@ -40,7 +32,7 @@ impl MonitorView {
             if let Some(ref selected) = self.selected {
                 'label: {
                     for device in &devices {
-                        if &device == &selected {
+                        if device == selected {
                             break 'label;
                         }
                     }
@@ -81,18 +73,6 @@ impl MonitorView {
                 });
 
             self.log += &mut device.endpoint.read().join("\n");
-        }
-    }
-}
-
-impl Default for MonitorView {
-    fn default() -> Self {
-        Self {
-            devices: None,
-            selected: None,
-            device: None,
-            command: String::new(),
-            log: String::new(),
         }
     }
 }

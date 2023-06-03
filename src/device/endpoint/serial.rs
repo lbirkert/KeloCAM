@@ -16,7 +16,7 @@ impl SerialEndpoint {
     pub fn from(port: String, baud_rate: u32) -> Self {
         Self {
             port,
-            baud_rate: baud_rate,
+            baud_rate,
 
             serial_port: None,
         }
@@ -25,7 +25,7 @@ impl SerialEndpoint {
     pub fn find() -> Vec<SerialPortInfo> {
         match serialport::available_ports() {
             Ok(serial_ports) => {
-                println!("{:#?}", serial_ports);
+                println!("{serial_ports:#?}");
                 serial_ports
                     .into_iter()
                     .filter(|port| matches!(port.port_type, SerialPortType::UsbPort(_)))
@@ -59,15 +59,12 @@ impl Endpoint for SerialEndpoint {
             let mut byte_buffer: Vec<u8> = vec![0; bytes as usize];
             let _ = serial_port.read(&mut byte_buffer);
 
-            match String::from_utf8(byte_buffer) {
-                Ok(s) => {
-                    return s.split("\r\n").map(|s| String::from(s)).collect();
-                }
-                Err(_) => {}
+            if let Ok(s) = String::from_utf8(byte_buffer) {
+                return s.split("\r\n").map(String::from).collect();
             }
         }
 
-        return Vec::new();
+        Vec::new()
     }
 
     fn write(&mut self, buf: &[u8]) -> Result<(), String> {
@@ -85,10 +82,8 @@ impl Endpoint for SerialEndpoint {
 
 impl Drop for SerialEndpoint {
     fn drop(&mut self) {
-        if let Some(_) = self.serial_port {
-            if let Err(_) = self.close() {
-                panic!("Could not close serial endpoint");
-            }
+        if self.serial_port.is_some() && self.close().is_err() {
+            panic!("Could not close serial endpoint");
         }
     }
 }

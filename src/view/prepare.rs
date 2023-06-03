@@ -1,17 +1,11 @@
 use crate::widget::viewer::Viewer;
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, Default)]
 #[serde(default)]
 pub struct PrepareView {}
 
 impl PrepareView {
-    pub fn show(self: &mut Self, ui: &mut egui::Ui, viewer: &mut Viewer) {
+    pub fn show(&mut self, ui: &mut egui::Ui, viewer: &mut Viewer) {
         viewer.ui(ui);
-    }
-}
-
-impl Default for PrepareView {
-    fn default() -> Self {
-        Self {}
     }
 }
