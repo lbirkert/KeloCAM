@@ -39,7 +39,7 @@ impl CameraUniform {
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
                 count: None,
-                visibility: wgpu::ShaderStages::VERTEX,
+                visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,
@@ -112,7 +112,8 @@ impl Camera {
     pub fn uniform(&self) -> CameraUniformData {
         CameraUniformData {
             view_proj: self.calc_matrix().into(),
-            view_pos: self.position.to_homogeneous().into(),
+            view_pos: Vector4::new(self.position.x, self.position.y, self.position.z, self.zoom)
+                .into(),
         }
     }
 }
@@ -128,7 +129,7 @@ impl Default for Camera {
 
             aspect: 1.0,
             fovy: std::f32::consts::FRAC_PI_4,
-            znear: 0.1,
+            znear: 0.01,
             zfar: 100.0,
         }
     }

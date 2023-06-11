@@ -5,7 +5,8 @@ struct VertexOut {
 
 struct Camera {
     view_proj: mat4x4<f32>,
-    view_pos: vec3<f32>,
+    // x, y, z, zoom
+    view_pos: vec4<f32>,
 };
 
 @group(0) @binding(0)
@@ -37,6 +38,19 @@ fn vs_main(@builtin(vertex_index) v_idx: u32) -> VertexOut {
 
 @fragment
 fn fs_main(@location(1) vpos: vec2<f32>) -> @location(0) vec4<f32> {
+    var color = grid(vpos) * 0.6;
+
+    color = max(color, grid(vpos * 10.0) * 0.3);
+
+    // check zoom level
+    if camera.view_pos.w > 0.5 {
+        color = max(color, grid(vpos * 100.0) * 0.1);
+    }
+
+    return color;
+}
+
+fn grid(vpos: vec2<f32>) -> vec4<f32> {
     // https://madebyevan.com/shaders/grid/
 
     let grid = abs(fract(vpos - 0.5) - 0.5) / (abs(dpdx(vpos)) + abs(dpdy(vpos)));
