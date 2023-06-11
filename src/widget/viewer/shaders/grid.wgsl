@@ -40,11 +40,11 @@ fn vs_main(@builtin(vertex_index) v_idx: u32) -> VertexOut {
 fn fs_main(@location(1) vpos: vec2<f32>) -> @location(0) vec4<f32> {
     var color = grid(vpos) * 0.6;
 
-    color = max(color, grid(vpos * 10.0) * 0.3);
+    color = max(color, grid(vpos * 10.0) * 0.4);
 
     // check zoom level
     if camera.view_pos.w > 0.5 {
-        color = max(color, grid(vpos * 100.0) * 0.1);
+        color = max(color, grid(vpos * 100.0) * 0.3);
     }
 
     return color;
@@ -61,5 +61,5 @@ fn grid(vpos: vec2<f32>) -> vec4<f32> {
     // Gama correction
     color = pow(color, 1.0 / 2.2);
 
-    return vec4(vec3(color), 1.0);
+    return vec4(color);
 }

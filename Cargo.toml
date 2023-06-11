@@ -21,6 +21,7 @@ nalgebra-glm = "0.18.0"
 rfd = "0.11.4"
 futures = "0.3.28"
 pollster = "0.3.0"
+byteorder = "1.4.3"
 
 [profile.release]
 opt-level = 2 # fast and small wasm

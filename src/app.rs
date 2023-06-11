@@ -5,7 +5,8 @@ use std::future::Future;
 use std::pin::Pin;
 use std::task::Poll;
 
-use crate::widget::viewer::Viewer;
+use crate::object::{Object, ObjectUniform};
+use crate::widget::viewer::{Viewer, ViewerRenderResources};
 
 use crate::view::{monitor::MonitorView, prepare::PrepareView, View};
 
@@ -39,12 +40,34 @@ impl KeloApp {
 }
 
 impl eframe::App for KeloApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         if let Some(file_dialog) = &mut self.file_dialog {
             if let Poll::Ready(handle) = async { futures::poll!(file_dialog.as_mut()) }.block_on() {
                 self.file_dialog = None;
 
                 println!("{handle:?}");
+                if let Some(handle) = handle {
+                    async {
+                        if let Ok(object) = Object::from_stl(handle.read().await) {
+                            let wgpu_render_state = &frame.wgpu_render_state().unwrap();
+
+                            let uniform = ObjectUniform::new(
+                                &wgpu_render_state.device,
+                                object.uniform(),
+                                &self.viewer.object_bind_group_layout,
+                            );
+
+                            let mut written = wgpu_render_state.renderer.write();
+
+                            let resources: &mut ViewerRenderResources =
+                                written.paint_callback_resources.get_mut().unwrap();
+                            resources.object_uniforms.push(uniform);
+
+                            self.viewer.objects.push(object);
+                        }
+                    }
+                    .block_on();
+                }
             };
         }
 
@@ -56,14 +79,13 @@ impl eframe::App for KeloApp {
                     if ui.button("Open").clicked() {
                         self.file_dialog = Some(Box::pin(
                             AsyncFileDialog::new()
-                                .add_filter("text", &["txt", "rs"])
-                                .add_filter("rust", &["rs", "toml"])
+                                .add_filter("STL Files", &["stl"])
                                 .set_directory("/")
                                 .pick_file(),
                         ));
                     }
                     if ui.button("Quit").clicked() {
-                        _frame.close();
+                        frame.close();
                     }
                 });
                 ui.menu_button("View", |ui| {

@@ -1188,6 +1188,7 @@ name = "kelocam"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "byteorder 1.4.3",
  "eframe",
  "egui",
  "futures",

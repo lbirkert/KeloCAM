@@ -43,7 +43,6 @@ impl CameraUniform {
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,
-                    // mat4x4 + vec3
                     min_binding_size: None,
                 },
             }],
