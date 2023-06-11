@@ -228,8 +228,6 @@ impl Viewer {
             .prepare(move |_device, queue, _encoder, paint_callback_resources| {
                 let resources: &ViewerRenderResources = paint_callback_resources.get().unwrap();
 
-                println!("{:?}", object_buffer.get(0));
-
                 resources.camera_uniform.update(queue, uniform);
                 queue.write_buffer(
                     &resources.object_buffer,
