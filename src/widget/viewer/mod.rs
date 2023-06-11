@@ -101,10 +101,10 @@ impl Viewer {
                 for event in &i.events {
                     if let egui::Event::Scroll(v) = event {
                         if v[0] == 0.0 {
-                            if v[1] > 5.0 {
-                                self.camera.zoom *= 1.1;
-                            } else if v[1] < 5.0 {
-                                self.camera.zoom /= 1.1;
+                            if v[1] > 0.0 {
+                                self.camera.zoom *= 1.0 + 0.001 * v[1];
+                            } else if v[1] < 0.0 {
+                                self.camera.zoom /= 1.0 + 0.001 * -v[1];
                             }
                         }
                     }
