@@ -22,11 +22,15 @@ var<private> v_positions: array<vec2<f32>, 6> = array<vec2<f32>, 6>(
 
 @vertex
 fn vs_main(@builtin(vertex_index) v_idx: u32) -> VertexOut {
+    let grid_size = vec2<f32>(10.0, 20.0);
+
     var out: VertexOut;
 
-    let world_pos = vec4<f32>(v_positions[v_idx], 0.0, 1.0);
+    let grid_pos = v_positions[v_idx] * grid_size;
+    let world_pos = vec4<f32>(grid_pos.x, 0.0, grid_pos.y, 1.0);
+
     out.pos = world_pos * camera.view_proj;
-    out.vpos = v_positions[v_idx];
+    out.vpos = grid_pos;
 
     return out;
 }

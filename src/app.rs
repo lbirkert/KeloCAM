@@ -1,11 +1,16 @@
-use egui_file::FileDialog;
+use pollster::FutureExt;
+
+use rfd::{AsyncFileDialog, FileHandle};
+use std::future::Future;
+use std::pin::Pin;
+use std::task::Poll;
 
 use crate::widget::viewer::Viewer;
 
 use crate::view::{monitor::MonitorView, prepare::PrepareView, View};
 
 pub struct KeloApp {
-    file_dialog: Option<FileDialog>,
+    file_dialog: Option<Pin<Box<dyn Future<Output = Option<FileHandle>>>>>,
 
     view: View,
 
@@ -35,12 +40,12 @@ impl KeloApp {
 
 impl eframe::App for KeloApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        if let Some(dialog) = &mut self.file_dialog {
-            if dialog.show(ctx).selected() {
-                if let Some(file) = dialog.path() {
-                    println!("FILE: {}", file.display());
-                }
-            }
+        if let Some(file_dialog) = &mut self.file_dialog {
+            if let Poll::Ready(handle) = async { futures::poll!(file_dialog.as_mut()) }.block_on() {
+                self.file_dialog = None;
+
+                println!("{handle:?}");
+            };
         }
 
         #[cfg(not(target_arch = "wasm32"))] // no File->Quit on web pages!
@@ -49,10 +54,13 @@ impl eframe::App for KeloApp {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
                     if ui.button("Open").clicked() {
-                        println!("kekws");
-                        let mut dialog = FileDialog::open_file(None);
-                        dialog.open();
-                        self.file_dialog = Some(dialog);
+                        self.file_dialog = Some(Box::pin(
+                            AsyncFileDialog::new()
+                                .add_filter("text", &["txt", "rs"])
+                                .add_filter("rust", &["rs", "toml"])
+                                .set_directory("/")
+                                .pick_file(),
+                        ));
                     }
                     if ui.button("Quit").clicked() {
                         _frame.close();
