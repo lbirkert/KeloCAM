@@ -77,14 +77,12 @@ impl eframe::App for KeloApp {
             });
         });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            // The central panel the region left after adding TopPanel's and SidePanel's
+        // The central panel the region left after adding TopPanel's and SidePanel's
 
-            match self.view {
-                View::Monitor => self.monitor.show(ui),
-                View::Prepare => self.prepare.show(ui, &mut self.viewer),
-                _ => {}
-            };
-        });
+        match self.view {
+            View::Monitor => self.monitor.show(ctx),
+            View::Prepare => self.prepare.show(ctx, &mut self.viewer),
+            _ => {}
+        };
     }
 }

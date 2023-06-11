@@ -76,21 +76,17 @@ pub struct Camera {
     pub position: Vector3<f32>,
     pub yaw: f32,
     pub pitch: f32,
+    pub zoom: f32,
 
     aspect: f32,
     fovy: f32,
     znear: f32,
     zfar: f32,
-    zoom: f32,
-
-    pub has_changed: bool,
 }
 
 impl Camera {
     pub fn resize(&mut self, width: f32, height: f32) {
         self.aspect = width / height;
-
-        self.has_changed = true;
     }
 
     pub fn calc_matrix(&self) -> Matrix4<f32> {
@@ -106,13 +102,17 @@ impl Camera {
             .transform_vector(&Vector3::new(0.0, 0.0, 1.0))
             / self.zoom;
 
-        nalgebra_glm::look_at_lh(&aeye, &Vector3::new(0.0, 0.0, 0.0), &Vector3::y_axis())
+        nalgebra_glm::look_at_lh(
+            &(aeye + self.position),
+            &(Vector3::new(0.0, 0.0, 0.0) + self.position),
+            &Vector3::y_axis(),
+        )
     }
 
     pub fn uniform(&self) -> CameraUniformData {
         CameraUniformData {
             view_proj: self.calc_matrix().into(),
-            view_pos: Vector4::new(69.0, 69.0, 69.0, 0.0).into(),
+            view_pos: self.position.to_homogeneous().into(),
         }
     }
 }
@@ -130,8 +130,6 @@ impl Default for Camera {
             fovy: std::f32::consts::FRAC_PI_4,
             znear: 0.1,
             zfar: 100.0,
-
-            has_changed: false,
         }
     }
 }

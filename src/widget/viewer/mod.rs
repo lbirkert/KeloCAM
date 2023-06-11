@@ -88,13 +88,28 @@ impl Viewer {
         if response.dragged_by(egui::PointerButton::Secondary) {
             self.camera.yaw += response.drag_delta().x * 0.005;
             self.camera.pitch += response.drag_delta().y * -0.005;
-            self.camera.has_changed = true;
 
             if self.camera.pitch < -SAFE_FRAC_PI_2 {
                 self.camera.pitch = -SAFE_FRAC_PI_2;
             } else if self.camera.pitch > SAFE_FRAC_PI_2 {
                 self.camera.pitch = SAFE_FRAC_PI_2;
             }
+        }
+
+        if ui.rect_contains_pointer(rect) {
+            ui.ctx().input(|i| {
+                for event in &i.events {
+                    if let egui::Event::Scroll(v) = event {
+                        if v[0] == 0.0 {
+                            if v[1] > 5.0 {
+                                self.camera.zoom *= 1.1;
+                            } else if v[1] < 5.0 {
+                                self.camera.zoom /= 1.1;
+                            }
+                        }
+                    }
+                }
+            });
         }
 
         if ui.input(|i| i.key_pressed(egui::Key::W)) {
@@ -115,21 +130,14 @@ impl Viewer {
 
         // TODO: Find out how to detect scroll
 
-        let uniform = if self.camera.has_changed {
-            self.camera.has_changed = false;
-            Some(self.camera.uniform())
-        } else {
-            None
-        };
+        let uniform = self.camera.uniform();
 
         let cb = egui_wgpu::CallbackFn::new()
             .prepare(move |_device, queue, _encoder, paint_callback_resources| {
                 let resources: &TriangleRenderResources = paint_callback_resources.get().unwrap();
 
                 // Update the camera uniform buffer if changed
-                if let Some(uniform) = uniform {
-                    resources.camera_uniform.update(queue, uniform);
-                }
+                resources.camera_uniform.update(queue, uniform);
 
                 Vec::new()
             })

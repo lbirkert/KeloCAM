@@ -4,7 +4,13 @@ use crate::widget::viewer::Viewer;
 pub struct PrepareView {}
 
 impl PrepareView {
-    pub fn show(&mut self, ui: &mut egui::Ui, viewer: &mut Viewer) {
-        viewer.ui(ui);
+    pub fn show(&mut self, ctx: &egui::Context, viewer: &mut Viewer) {
+        egui::SidePanel::left("my_left_panel").show(ctx, |ui| {
+            ui.heading("Editor");
+        });
+
+        egui::CentralPanel::default().show(ctx, |ui| {
+            viewer.ui(ui);
+        });
     }
 }
