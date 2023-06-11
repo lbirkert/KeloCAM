@@ -1,10 +1,6 @@
-#![allow(unused_imports)]
+use nalgebra::*;
+use nalgebra_glm;
 
-use cgmath::*;
-
-use crate::OPENGL_TO_WGPU_MATRIX;
-
-use std::num::NonZeroU64;
 use std::sync::Arc;
 
 use bytemuck;
@@ -13,9 +9,16 @@ use eframe::wgpu;
 
 use eframe::wgpu::util::DeviceExt;
 
-// We have got 2 seperate classes for the Camera to seperate
+// We have got 2 seperate structs for the Camera to seperate
 // the actual state of the camera which will sit in the frontend
 // and the wgpu state required to perform paint calls.
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod)]
+pub struct CameraUniformData {
+    view_proj: [[f32; 4]; 4],
+    view_pos: [f32; 4],
+}
 
 pub struct CameraUniform {
     pub bind_group_layout: wgpu::BindGroupLayout,
@@ -24,10 +27,10 @@ pub struct CameraUniform {
 }
 
 impl CameraUniform {
-    pub fn new(device: &Arc<wgpu::Device>, view_proj: &[f32; 16]) -> Self {
+    pub fn new(device: &Arc<wgpu::Device>, data: CameraUniformData) -> Self {
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Camera"),
-            contents: bytemuck::cast_slice(view_proj),
+            contents: bytemuck::cast_slice(&[data]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
@@ -40,8 +43,8 @@ impl CameraUniform {
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,
-                    // mat4x4
-                    min_binding_size: NonZeroU64::new(16 * 4),
+                    // mat4x4 + vec3
+                    min_binding_size: None,
                 },
             }],
         });
@@ -63,21 +66,22 @@ impl CameraUniform {
     }
 
     // TODO: Find out if method is really necessary
-    pub fn update(&self, queue: &wgpu::Queue, view_proj: &[f32; 16]) {
-        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(view_proj));
+    pub fn update(&self, queue: &wgpu::Queue, data: CameraUniformData) {
+        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[data]));
     }
 }
 
 #[derive(Debug)]
 pub struct Camera {
-    pub position: Point3<f32>,
-    pub yaw: Rad<f32>,
-    pub pitch: Rad<f32>,
+    pub position: Vector3<f32>,
+    pub yaw: f32,
+    pub pitch: f32,
 
     aspect: f32,
-    fovy: Rad<f32>,
+    fovy: f32,
     znear: f32,
     zfar: f32,
+    zoom: f32,
 
     pub has_changed: bool,
 }
@@ -90,28 +94,40 @@ impl Camera {
     }
 
     pub fn calc_matrix(&self) -> Matrix4<f32> {
-        let (sin_pitch, cos_pitch) = self.pitch.0.sin_cos();
-        let (sin_yaw, cos_yaw) = self.yaw.0.sin_cos();
+        (self.projection() * self.view()).transpose()
+    }
 
-        OPENGL_TO_WGPU_MATRIX
-            * perspective(self.fovy, self.aspect, self.znear, self.zfar)
-            * Matrix4::look_to_rh(
-                self.position,
-                Vector3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw).normalize(),
-                Vector3::unit_y(),
-            )
+    fn projection(&self) -> Matrix4<f32> {
+        nalgebra_glm::perspective_lh(self.aspect, self.fovy, self.znear, self.zfar)
+    }
+
+    fn view(&self) -> Matrix4<f32> {
+        let aeye = Matrix4::from_euler_angles(self.pitch, self.yaw, 0.0)
+            .transform_vector(&Vector3::new(0.0, 0.0, 1.0))
+            / self.zoom;
+
+        nalgebra_glm::look_at_lh(&aeye, &Vector3::new(0.0, 0.0, 0.0), &Vector3::y_axis())
+    }
+
+    pub fn uniform(&self) -> CameraUniformData {
+        CameraUniformData {
+            view_proj: self.calc_matrix().into(),
+            view_pos: Vector4::new(69.0, 69.0, 69.0, 0.0).into(),
+        }
     }
 }
 
 impl Default for Camera {
     fn default() -> Self {
         Self {
-            position: Point3::new(0.0, 0.0, -10.0),
-            pitch: Deg(0.0).into(),
-            yaw: Deg(90.0).into(),
+            position: Vector3::new(0.0, 0.0, 0.0),
+            pitch: 0.0,
+            yaw: 0.0,
+
+            zoom: 0.1,
 
             aspect: 1.0,
-            fovy: Deg(90.0).into(),
+            fovy: std::f32::consts::FRAC_PI_4,
             znear: 0.1,
             zfar: 100.0,
 

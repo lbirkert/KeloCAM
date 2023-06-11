@@ -11,6 +11,8 @@ use eframe::wgpu::util::DeviceExt;
 mod camera;
 use camera::{Camera, CameraUniform};
 
+const SAFE_FRAC_PI_2: f32 = std::f32::consts::FRAC_PI_2 - 0.0001;
+
 pub struct Viewer {
     camera: Camera,
 }
@@ -24,7 +26,7 @@ impl Viewer {
         let device = &wgpu_render_state.device;
 
         let camera = Camera::default();
-        let camera_uniform = CameraUniform::new(device, camera.calc_matrix().as_ref());
+        let camera_uniform = CameraUniform::new(device, camera.uniform());
 
         let object_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("object"),
@@ -84,16 +86,38 @@ impl Viewer {
         let (rect, response) = ui.allocate_exact_size(available_size, egui::Sense::drag());
 
         if response.dragged_by(egui::PointerButton::Secondary) {
-            self.camera.yaw += cgmath::Rad(response.drag_delta().x * 0.005);
-            self.camera.pitch += cgmath::Rad(response.drag_delta().y * 0.005);
+            self.camera.yaw += response.drag_delta().x * 0.005;
+            self.camera.pitch += response.drag_delta().y * -0.005;
             self.camera.has_changed = true;
+
+            if self.camera.pitch < -SAFE_FRAC_PI_2 {
+                self.camera.pitch = -SAFE_FRAC_PI_2;
+            } else if self.camera.pitch > SAFE_FRAC_PI_2 {
+                self.camera.pitch = SAFE_FRAC_PI_2;
+            }
+        }
+
+        if ui.input(|i| i.key_pressed(egui::Key::W)) {
+            self.camera.position.z += 1.0;
+        }
+
+        if ui.input(|i| i.key_pressed(egui::Key::S)) {
+            self.camera.position.z -= 1.0;
+        }
+
+        if ui.input(|i| i.key_pressed(egui::Key::A)) {
+            self.camera.position.x -= 1.0;
+        }
+
+        if ui.input(|i| i.key_pressed(egui::Key::D)) {
+            self.camera.position.x += 1.0;
         }
 
         // TODO: Find out how to detect scroll
 
-        let view_proj = if self.camera.has_changed {
+        let uniform = if self.camera.has_changed {
             self.camera.has_changed = false;
-            Some(self.camera.calc_matrix())
+            Some(self.camera.uniform())
         } else {
             None
         };
@@ -103,8 +127,8 @@ impl Viewer {
                 let resources: &TriangleRenderResources = paint_callback_resources.get().unwrap();
 
                 // Update the camera uniform buffer if changed
-                if let Some(view_proj) = view_proj {
-                    resources.camera_uniform.update(queue, view_proj.as_ref());
+                if let Some(uniform) = uniform {
+                    resources.camera_uniform.update(queue, uniform);
                 }
 
                 Vec::new()
