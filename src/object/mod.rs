@@ -141,18 +141,14 @@ impl Object {
         verticies
     }
 
-    pub fn calc_matrix(&self) -> Matrix4<f32> {
+    pub fn uniform(&self) -> ObjectUniformData {
         let translation = Matrix4::new_translation(&self.offset);
         let scaling = Matrix4::new_nonuniform_scaling(&self.scale);
         let rotation =
             Matrix4::from_euler_angles(self.rotation.x, self.rotation.y, self.rotation.z);
 
-        (translation * scaling * rotation).transpose()
-    }
+        let proj = (translation * scaling * rotation).transpose();
 
-    pub fn uniform(&self) -> ObjectUniformData {
-        ObjectUniformData {
-            proj: self.calc_matrix().into(),
-        }
+        ObjectUniformData { proj: proj.into() }
     }
 }

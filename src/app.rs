@@ -45,7 +45,6 @@ impl eframe::App for KeloApp {
             if let Poll::Ready(handle) = async { futures::poll!(file_dialog.as_mut()) }.block_on() {
                 self.file_dialog = None;
 
-                println!("{handle:?}");
                 if let Some(handle) = handle {
                     async {
                         if let Ok(object) = Object::from_stl(handle.read().await) {

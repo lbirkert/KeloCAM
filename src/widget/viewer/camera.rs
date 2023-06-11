@@ -16,8 +16,10 @@ use eframe::wgpu::util::DeviceExt;
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod)]
 pub struct CameraUniformData {
-    view_proj: [[f32; 4]; 4],
-    view_pos: [f32; 4],
+    // The projection of the camera
+    proj: [[f32; 4]; 4],
+    // The position of the camera
+    pos: [f32; 4],
 }
 
 pub struct CameraUniform {
@@ -29,13 +31,13 @@ pub struct CameraUniform {
 impl CameraUniform {
     pub fn new(device: &Arc<wgpu::Device>, data: CameraUniformData) -> Self {
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Camera"),
+            label: Some("camera"),
             contents: bytemuck::cast_slice(&[data]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("Camera"),
+            label: Some("camera"),
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
                 count: None,
@@ -49,7 +51,7 @@ impl CameraUniform {
         });
 
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Camera"),
+            label: Some("camera"),
             layout: &bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 resource: buffer.as_entire_binding(),
@@ -88,31 +90,31 @@ impl Camera {
         self.aspect = width / height;
     }
 
-    pub fn calc_matrix(&self) -> Matrix4<f32> {
-        (self.projection() * self.view()).transpose()
-    }
-
     fn projection(&self) -> Matrix4<f32> {
         nalgebra_glm::perspective_lh(self.aspect, self.fovy, self.znear, self.zfar)
     }
 
-    fn view(&self) -> Matrix4<f32> {
-        let aeye = Matrix4::from_euler_angles(self.pitch, self.yaw, 0.0)
-            .transform_vector(&Vector3::new(0.0, 0.0, 1.0))
-            / self.zoom;
-
+    fn view(&self, eye: Vector3<f32>) -> Matrix4<f32> {
         nalgebra_glm::look_at_lh(
-            &(aeye + self.position),
+            &(eye + self.position),
             &(Vector3::new(0.0, 0.0, 0.0) + self.position),
             &Vector3::y_axis(),
         )
     }
 
+    fn eye(&self) -> Vector3<f32> {
+        Matrix4::from_euler_angles(self.pitch, self.yaw, 0.0)
+            .transform_vector(&Vector3::new(0.0, 0.0, 1.0))
+            / self.zoom
+    }
+
     pub fn uniform(&self) -> CameraUniformData {
+        let eye = self.eye();
+        let proj = (self.projection() * self.view(eye)).transpose();
+
         CameraUniformData {
-            view_proj: self.calc_matrix().into(),
-            view_pos: Vector4::new(self.position.x, self.position.y, self.position.z, self.zoom)
-                .into(),
+            proj: proj.into(),
+            pos: Vector4::new(eye.x, eye.y, eye.z, self.zoom).into(),
         }
     }
 }

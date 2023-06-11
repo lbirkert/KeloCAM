@@ -5,12 +5,13 @@ struct VertexIn {
 
 struct VertexOut {
     @builtin(position) pos: vec4<f32>,
+    @location(1) light: f32,
 };
 
 struct Camera {
-    view_proj: mat4x4<f32>,
+    proj: mat4x4<f32>,
     // x, y, z, zoom
-    view_pos: vec4<f32>,
+    pos: vec4<f32>,
 };
 
 struct Object {
@@ -28,12 +29,17 @@ fn vs_main(in: VertexIn) -> VertexOut {
     var out: VertexOut;
 
     let world_pos = object.proj * vec4<f32>(in.pos, 1.0);
-    out.pos = world_pos * camera.view_proj;
+    out.pos = world_pos * camera.proj;
+
+    // Lighting
+    let view_normal = normalize(camera.pos.xyz - world_pos.xyz);
+
+    out.light = dot(in.normal, view_normal);
 
     return out;
 }
 
 @fragment
 fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
-    return vec4(1.0);
+    return vec4(vec3(0.5 + in.light * 0.2), 1.0);
 }
