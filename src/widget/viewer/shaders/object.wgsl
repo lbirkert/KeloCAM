@@ -30,10 +30,15 @@ fn vs_main(in: VertexIn) -> VertexOut {
 
     out.light = dot(normal, view_normal);
 
+    // Disable rendering of invisible faces
+    if out.light <= 0.0 {
+        out.pos = vec4(0.0);
+    }
+
     return out;
 }
 
 @fragment
 fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
-    return vec4(vec3(0.5 + in.light * 0.2), 1.0);
+    return vec4<f32>(vec3<f32>(0.5 + in.light * 0.3), 1.0);
 }

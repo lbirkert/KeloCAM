@@ -96,7 +96,7 @@ impl Camera {
 
     fn view(&self, eye: Vector3<f32>) -> Matrix4<f32> {
         nalgebra_glm::look_at_lh(
-            &(eye + self.position),
+            &eye,
             &(Vector3::new(0.0, 0.0, 0.0) + self.position),
             &Vector3::y_axis(),
         )
@@ -106,6 +106,7 @@ impl Camera {
         Matrix4::from_euler_angles(self.pitch, self.yaw, 0.0)
             .transform_vector(&Vector3::new(0.0, 0.0, 1.0))
             / self.zoom
+            + self.position
     }
 
     pub fn uniform(&self) -> CameraUniformData {
