@@ -62,6 +62,9 @@ pub struct Viewer {
     camera: Camera,
 
     pub objects: Vec<Object>,
+    object_verticies: u32,
+
+    pub object_changed: bool,
 }
 
 impl Viewer {
@@ -132,6 +135,8 @@ impl Viewer {
         Some(Self {
             camera,
             objects: vec![],
+            object_verticies: 0,
+            object_changed: false,
         })
     }
 
@@ -192,31 +197,36 @@ impl Viewer {
 
         let uniform = self.camera.uniform();
 
-        let mut object_buffer: Vec<object::Vertex> = Vec::new();
+        let object_buffer = if self.object_changed {
+            let mut object_buffer: Vec<object::Vertex> = Vec::new();
 
-        let mut objects: Vec<(usize, usize)> = Vec::new();
+            for object in &self.objects {
+                object_buffer.append(&mut object.verticies());
+            }
 
-        let mut end = 0;
-        for object in &self.objects {
-            let start = end;
+            self.object_verticies = object_buffer.len() as u32;
+            self.object_changed = false;
 
-            let mut verticies = object.verticies();
-            end += verticies.len();
-            object_buffer.append(&mut verticies);
+            Some(object_buffer)
+        } else {
+            None
+        };
 
-            objects.push((start, end));
-        }
+        let object_verticies = self.object_verticies;
 
         let cb = egui_wgpu::CallbackFn::new()
             .prepare(move |_device, queue, _encoder, paint_callback_resources| {
                 let resources: &ViewerRenderResources = paint_callback_resources.get().unwrap();
 
                 resources.camera_uniform.update(queue, uniform);
-                queue.write_buffer(
-                    &resources.object_buffer,
-                    0,
-                    bytemuck::cast_slice(object_buffer.as_slice()),
-                );
+
+                if let Some(ref object_buffer) = object_buffer {
+                    queue.write_buffer(
+                        &resources.object_buffer,
+                        0,
+                        bytemuck::cast_slice(object_buffer.as_slice()),
+                    );
+                }
 
                 Vec::new()
             })
@@ -224,8 +234,8 @@ impl Viewer {
                 let resources: &ViewerRenderResources = paint_callback_resources.get().unwrap();
                 resources.draw_grid(render_pass);
 
-                for (start, end) in objects.iter() {
-                    resources.draw_object(render_pass, *start, *end);
+                if object_verticies > 0 {
+                    resources.draw_object(render_pass, object_verticies);
                 }
             });
 
@@ -253,20 +263,14 @@ impl ViewerRenderResources {
         render_pass.draw(0..6, 0..2);
     }
 
-    fn draw_object<'rp>(
-        &'rp self,
-        render_pass: &mut wgpu::RenderPass<'rp>,
-        start: usize,
-        end: usize,
-    ) {
+    fn draw_object<'rp>(&'rp self, render_pass: &mut wgpu::RenderPass<'rp>, object_verticies: u32) {
         render_pass.set_pipeline(&self.object_pipeline);
         render_pass.set_bind_group(0, &self.camera_uniform.bind_group, &[]);
         render_pass.set_vertex_buffer(
             0,
-            self.object_buffer.slice(
-                ((object::VERTEX_SIZE * start) as u64)..((object::VERTEX_SIZE * end) as u64),
-            ),
+            self.object_buffer
+                .slice(0..(object::VERTEX_SIZE as u64 * object_verticies as u64)),
         );
-        render_pass.draw(0..(end - start) as u32, 0..(end - start) as u32 / 3);
+        render_pass.draw(0..object_verticies, 0..object_verticies / 3);
     }
 }

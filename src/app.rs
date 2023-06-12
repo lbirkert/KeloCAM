@@ -49,6 +49,7 @@ impl eframe::App for KeloApp {
                     async {
                         if let Ok(object) = Object::from_stl(handle.read().await) {
                             self.viewer.objects.push(object);
+                            self.viewer.object_changed = true;
                         }
                     }
                     .block_on();
