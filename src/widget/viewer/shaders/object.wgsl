@@ -14,27 +14,21 @@ struct Camera {
     pos: vec4<f32>,
 };
 
-struct Object {
-    proj: mat4x4<f32>
-};
-
 @group(0) @binding(0)
 var<uniform> camera: Camera;
-
-@group(1) @binding(0)
-var<uniform> object: Object;
 
 @vertex
 fn vs_main(in: VertexIn) -> VertexOut {
     var out: VertexOut;
 
-    let world_pos = object.proj * vec4<f32>(in.pos, 1.0);
+    let world_pos = vec4<f32>(in.pos.xzy, 1.0);
     out.pos = world_pos * camera.proj;
 
     // Lighting
+    let normal = in.normal.xzy;
     let view_normal = normalize(camera.pos.xyz - world_pos.xyz);
 
-    out.light = dot(in.normal, view_normal);
+    out.light = dot(normal, view_normal);
 
     return out;
 }

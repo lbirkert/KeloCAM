@@ -47,7 +47,7 @@ use eframe::wgpu::util::DeviceExt;
 mod camera;
 use camera::{Camera, CameraUniform};
 
-use crate::object::{self, Object, ObjectUniform, ObjectUniformData};
+use crate::object::{self, Object};
 
 const SAFE_FRAC_PI_2: f32 = std::f32::consts::FRAC_PI_2 - 0.0001;
 
@@ -55,8 +55,6 @@ pub struct Viewer {
     camera: Camera,
 
     pub objects: Vec<Object>,
-
-    pub object_bind_group_layout: wgpu::BindGroupLayout,
 }
 
 impl Viewer {
@@ -69,21 +67,6 @@ impl Viewer {
 
         let camera = Camera::default();
         let camera_uniform = CameraUniform::new(device, camera.uniform());
-
-        let object_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("object"),
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    count: None,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                }],
-            });
 
         let blend = wgpu::BlendState {
             color: wgpu::BlendComponent {
@@ -115,7 +98,7 @@ impl Viewer {
             device,
             "object",
             color_target.clone(),
-            &[&camera_uniform.bind_group_layout, &object_bind_group_layout],
+            &[&camera_uniform.bind_group_layout],
             &[object::VERTEX_BUFFER_LAYOUT]
         );
 
@@ -136,14 +119,12 @@ impl Viewer {
                 grid_pipeline,
                 camera_uniform,
 
-                object_uniforms: Vec::new(),
                 object_buffer,
             });
 
         Some(Self {
             camera,
             objects: vec![],
-            object_bind_group_layout,
         })
     }
 
@@ -206,15 +187,12 @@ impl Viewer {
 
         let uniform = self.camera.uniform();
 
-        let mut object_uniforms: Vec<ObjectUniformData> = Vec::new();
         let mut object_buffer: Vec<object::Vertex> = Vec::new();
 
         let mut objects: Vec<(usize, usize)> = Vec::new();
 
         let mut end = 0;
         for object in &self.objects {
-            object_uniforms.push(object.uniform());
-
             let start = end;
 
             let mut verticies = object.verticies();
@@ -235,18 +213,14 @@ impl Viewer {
                     bytemuck::cast_slice(object_buffer.as_slice()),
                 );
 
-                for (i, data) in object_uniforms.iter().enumerate() {
-                    resources.object_uniforms[i].update(queue, *data);
-                }
-
                 Vec::new()
             })
             .paint(move |_info, render_pass, paint_callback_resources| {
                 let resources: &ViewerRenderResources = paint_callback_resources.get().unwrap();
                 resources.draw_grid(render_pass);
 
-                for (i, (start, end)) in objects.iter().enumerate() {
-                    resources.draw_object(render_pass, i, *start, *end);
+                for (start, end) in objects.iter() {
+                    resources.draw_object(render_pass, *start, *end);
                 }
             });
 
@@ -264,8 +238,6 @@ pub struct ViewerRenderResources {
     object_pipeline: wgpu::RenderPipeline,
 
     camera_uniform: CameraUniform,
-
-    pub object_uniforms: Vec<ObjectUniform>,
     object_buffer: wgpu::Buffer,
 }
 
@@ -279,13 +251,11 @@ impl ViewerRenderResources {
     fn draw_object<'rp>(
         &'rp self,
         render_pass: &mut wgpu::RenderPass<'rp>,
-        index: usize,
         start: usize,
         end: usize,
     ) {
         render_pass.set_pipeline(&self.object_pipeline);
         render_pass.set_bind_group(0, &self.camera_uniform.bind_group, &[]);
-        render_pass.set_bind_group(1, &self.object_uniforms[index].bind_group, &[]);
         render_pass.set_vertex_buffer(
             0,
             self.object_buffer.slice(

@@ -5,8 +5,8 @@ use std::future::Future;
 use std::pin::Pin;
 use std::task::Poll;
 
-use crate::object::{Object, ObjectUniform};
-use crate::widget::viewer::{Viewer, ViewerRenderResources};
+use crate::object::Object;
+use crate::widget::viewer::Viewer;
 
 use crate::view::{monitor::MonitorView, prepare::PrepareView, View};
 
@@ -48,20 +48,6 @@ impl eframe::App for KeloApp {
                 if let Some(handle) = handle {
                     async {
                         if let Ok(object) = Object::from_stl(handle.read().await) {
-                            let wgpu_render_state = &frame.wgpu_render_state().unwrap();
-
-                            let uniform = ObjectUniform::new(
-                                &wgpu_render_state.device,
-                                object.uniform(),
-                                &self.viewer.object_bind_group_layout,
-                            );
-
-                            let mut written = wgpu_render_state.renderer.write();
-
-                            let resources: &mut ViewerRenderResources =
-                                written.paint_callback_resources.get_mut().unwrap();
-                            resources.object_uniforms.push(uniform);
-
                             self.viewer.objects.push(object);
                         }
                     }
