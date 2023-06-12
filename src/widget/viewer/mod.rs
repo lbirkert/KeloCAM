@@ -52,6 +52,7 @@ use eframe::wgpu::util::DeviceExt;
 
 mod camera;
 use camera::{Camera, CameraUniform};
+use nalgebra::{Matrix4, Vector3};
 
 use crate::object::{self, Object};
 
@@ -148,6 +149,7 @@ impl Viewer {
 
         let (rect, response) = ui.allocate_exact_size(available_size, egui::Sense::drag());
 
+        // Rotation
         if response.dragged_by(egui::PointerButton::Secondary) {
             self.camera.yaw += response.drag_delta().x * 0.005;
             self.camera.pitch += response.drag_delta().y * -0.005;
@@ -159,6 +161,19 @@ impl Viewer {
             }
         }
 
+        // Translation
+        if response.dragged_by(egui::PointerButton::Middle) {
+            let delta = Matrix4::from_euler_angles(self.camera.pitch, self.camera.yaw, 0.0)
+                .transform_vector(&Vector3::new(
+                    response.drag_delta().x * 0.001 / self.camera.zoom,
+                    response.drag_delta().y * 0.001 / self.camera.zoom,
+                    0.0,
+                ));
+
+            self.camera.position += delta;
+        }
+
+        // Zoom
         if ui.rect_contains_pointer(rect) {
             ui.ctx().input(|i| {
                 for event in &i.events {
@@ -173,22 +188,6 @@ impl Viewer {
                     }
                 }
             });
-        }
-
-        if ui.input(|i| i.key_pressed(egui::Key::W)) {
-            self.camera.position.z += 1.0;
-        }
-
-        if ui.input(|i| i.key_pressed(egui::Key::S)) {
-            self.camera.position.z -= 1.0;
-        }
-
-        if ui.input(|i| i.key_pressed(egui::Key::A)) {
-            self.camera.position.x -= 1.0;
-        }
-
-        if ui.input(|i| i.key_pressed(egui::Key::D)) {
-            self.camera.position.x += 1.0;
         }
 
         let uniform = self.camera.uniform();
