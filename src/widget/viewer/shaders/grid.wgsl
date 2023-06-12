@@ -61,5 +61,9 @@ fn grid(vpos: vec2<f32>) -> vec4<f32> {
     // Gama correction
     color = pow(color, 1.0 / 2.2);
 
-    return vec4(color);
+    if color == 0.0 {
+        return vec4(0.0);
+    } else {
+        return vec4(color);
+    }
 }

@@ -8,10 +8,15 @@ fn main() -> eframe::Result<()> {
     // Log to stdout (if you run with `RUST_LOG=debug`).
     tracing_subscriber::fmt::init();
 
-    let native_options = eframe::NativeOptions::default();
+    let options = eframe::NativeOptions {
+        renderer: eframe::Renderer::Wgpu,
+        depth_buffer: 32,
+        ..Default::default()
+    };
+
     eframe::run_native(
         "KeloCAM",
-        native_options,
+        options,
         Box::new(|cc| Box::new(KeloApp::new(cc))),
     )
 }
