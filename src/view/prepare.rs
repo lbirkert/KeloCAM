@@ -9,8 +9,10 @@ impl PrepareView {
             ui.heading("Editor");
         });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            viewer.ui(ui);
-        });
+        egui::CentralPanel::default()
+            .frame(egui::Frame::default())
+            .show(ctx, |ui| {
+                viewer.ui(ui);
+            });
     }
 }
