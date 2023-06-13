@@ -157,29 +157,10 @@ impl Object {
         let mut max = Vector3::from_element(std::f32::NEG_INFINITY);
 
         for triangle in self.triangles.iter() {
-            Self::vec3_min(&mut min, &triangle.v1);
-            Self::vec3_min(&mut min, &triangle.v2);
-            Self::vec3_min(&mut min, &triangle.v3);
-
-            Self::vec3_max(&mut max, &triangle.v1);
-            Self::vec3_max(&mut max, &triangle.v2);
-            Self::vec3_max(&mut max, &triangle.v3);
+            min = min.inf(&triangle.v1.inf(&triangle.v2.inf(&triangle.v3)));
+            max = max.sup(&triangle.v1.sup(&triangle.v2.sup(&triangle.v3)));
         }
 
         (min, max)
-    }
-
-    // TODO: get rid of these
-    fn vec3_min(lhs: &mut Vector3<f32>, rhs: &Vector3<f32>) {
-        lhs.x = lhs.x.min(rhs.x);
-        lhs.y = lhs.y.min(rhs.y);
-        lhs.z = lhs.z.min(rhs.z);
-    }
-
-    // TODO: get rid of these
-    fn vec3_max(lhs: &mut Vector3<f32>, rhs: &Vector3<f32>) {
-        lhs.x = lhs.x.max(rhs.x);
-        lhs.y = lhs.y.max(rhs.y);
-        lhs.z = lhs.z.max(rhs.z);
     }
 }
