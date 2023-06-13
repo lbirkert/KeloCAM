@@ -44,6 +44,8 @@ pub struct Object {
     pub translation: Vector3<f32>,
     pub rotation: Vector3<f32>,
     pub scale: Vector3<f32>,
+
+    pub name: Option<String>,
 }
 
 impl Object {
@@ -63,6 +65,7 @@ impl Object {
                 translation: Vector3::new(0.0, 0.0, 0.0),
                 rotation: Vector3::new(0.0, 0.0, 0.0),
                 scale: Vector3::new(1.0, 1.0, 1.0),
+                name: None,
             };
 
             // A unit in KeloCAM is 1CM not 1MM

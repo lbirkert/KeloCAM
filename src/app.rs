@@ -57,9 +57,7 @@ impl eframe::App for KeloApp {
             };
         }
 
-        #[cfg(not(target_arch = "wasm32"))] // no File->Quit on web pages!
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            // The top panel is often a good place for a menu bar:
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
                     if ui.button("Open").clicked() {
@@ -69,6 +67,8 @@ impl eframe::App for KeloApp {
                                 .set_directory("/")
                                 .pick_file(),
                         ));
+
+                        ui.close_menu();
                     }
                     if ui.button("Quit").clicked() {
                         frame.close();
