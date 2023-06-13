@@ -64,7 +64,24 @@ impl Object {
                 rotation: Vector3::new(0.0, 0.0, 0.0),
                 scale: Vector3::new(1.0, 1.0, 1.0),
             };
+
+            // A unit in KeloCAM is 1CM not 1MM
             object.scale(Vector3::new(0.1, 0.1, 0.1));
+
+            let (min, max) = object.bounding_box();
+
+            let delta = Vector3::new(
+                -min.x - (max.x - min.x) / 2.0,
+                -min.y - (max.y - min.y) / 2.0,
+                -min.z,
+            );
+
+            object.translate(delta);
+
+            // Reset scale and translation to 1
+            object.scale = Vector3::from_element(1.0);
+            object.translation = Vector3::from_element(0.0);
+
             object
         })
     }
@@ -132,5 +149,37 @@ impl Object {
         }
 
         self.rotation = rotation;
+    }
+
+    /// Returns the bounding box of the object as min and max vector
+    pub fn bounding_box(&self) -> (Vector3<f32>, Vector3<f32>) {
+        let mut min = Vector3::from_element(std::f32::INFINITY);
+        let mut max = Vector3::from_element(std::f32::NEG_INFINITY);
+
+        for triangle in self.triangles.iter() {
+            Self::vec3_min(&mut min, &triangle.v1);
+            Self::vec3_min(&mut min, &triangle.v2);
+            Self::vec3_min(&mut min, &triangle.v3);
+
+            Self::vec3_max(&mut max, &triangle.v1);
+            Self::vec3_max(&mut max, &triangle.v2);
+            Self::vec3_max(&mut max, &triangle.v3);
+        }
+
+        (min, max)
+    }
+
+    // TODO: get rid of these
+    fn vec3_min(lhs: &mut Vector3<f32>, rhs: &Vector3<f32>) {
+        lhs.x = lhs.x.min(rhs.x);
+        lhs.y = lhs.y.min(rhs.y);
+        lhs.z = lhs.z.min(rhs.z);
+    }
+
+    // TODO: get rid of these
+    fn vec3_max(lhs: &mut Vector3<f32>, rhs: &Vector3<f32>) {
+        lhs.x = lhs.x.max(rhs.x);
+        lhs.y = lhs.y.max(rhs.y);
+        lhs.z = lhs.z.max(rhs.z);
     }
 }
