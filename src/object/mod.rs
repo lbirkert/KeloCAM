@@ -1,7 +1,7 @@
 use std::io::Cursor;
 
 use eframe::wgpu;
-use nalgebra::{ArrayStorage, Matrix4, Vector3};
+use nalgebra::{ArrayStorage, Matrix4, Vector2, Vector3};
 use stl;
 
 #[repr(C)]
@@ -165,5 +165,39 @@ impl Object {
         }
 
         (min, max)
+    }
+
+    /// Z-Slice the model. TODO: Also slice on other axies
+    pub fn slice(&self, z: f32) -> Vec<(Vector2<f32>, Vector2<f32>)> {
+        let mut lines = Vec::new();
+
+        for triangle in self.triangles.iter() {
+            let mut points: Vec<Vector2<f32>> = Vec::with_capacity(2);
+
+            let a = triangle.v1;
+            let b = triangle.v2;
+            let c = triangle.v3;
+
+            if (a.z > z) != (b.z > z) {
+                points.push(a.xy().lerp(&b.xy(), (z - b.z) / (a.z - b.z)));
+            }
+
+            if (b.z > z) != (c.z > z) {
+                points.push(b.xy().lerp(&c.xy(), (z - c.z) / (b.z - c.z)));
+            }
+
+            if (c.z > z) != (a.z > z) {
+                points.push(c.xy().lerp(&a.xy(), (z - a.z) / (c.z - a.z)));
+            }
+
+            if let Some(p1) = points.pop() {
+                if let Some(p2) = points.pop() {
+                    // TODO: Add normal vector of line
+                    lines.push((p1, p2));
+                }
+            }
+        }
+
+        lines
     }
 }
