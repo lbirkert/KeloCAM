@@ -1,3 +1,5 @@
+use egui::{vec2, Color32, Stroke};
+
 use crate::widget::viewer::Viewer;
 
 #[derive(Default)]
@@ -6,6 +8,8 @@ pub struct PrepareView {
     edit_content: String,
 
     selected: Option<usize>,
+
+    layer: f32,
 }
 
 impl PrepareView {
@@ -57,6 +61,38 @@ impl PrepareView {
                 if let Some(remove) = remove {
                     viewer.objects.remove(remove);
                     viewer.object_changed = true;
+                }
+
+                if let Some(selected) = self.selected {
+                    let object = viewer.objects.get(selected).unwrap();
+                    let bounding_box = object.bounding_box();
+                    let dim = bounding_box.1 - bounding_box.0;
+                    let aspect = dim.y / dim.x;
+                    let lines = object.slice(self.layer);
+
+                    ui.add(egui::Slider::new(
+                        &mut self.layer,
+                        bounding_box.0.z..=bounding_box.1.z,
+                    ));
+
+                    let translation = -vec2(bounding_box.0.x, bounding_box.0.y);
+                    let scale = vec2(200.0 / dim.x, (200.0 * aspect) / dim.y);
+
+                    let (response, painter) =
+                        ui.allocate_painter(vec2(200.0, 200.0 * aspect), egui::Sense::hover());
+
+                    let offset = response.rect.left_top();
+                    let stroke = Stroke::new(1.0, Color32::from_gray(255));
+
+                    for line in lines {
+                        painter.line_segment(
+                            [
+                                offset + (translation + vec2(line.0.x, line.0.y)) * scale,
+                                offset + (translation + vec2(line.1.x, line.1.y)) * scale,
+                            ],
+                            stroke,
+                        );
+                    }
                 }
             });
 
