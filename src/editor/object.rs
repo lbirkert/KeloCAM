@@ -41,10 +41,6 @@ pub const VERTEX_BUFFER_LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::Vertex
 pub struct Object {
     pub triangles: Vec<Triangle>,
 
-    pub translation: Vector3<f32>,
-    pub rotation: Vector3<f32>,
-    pub scale: Vector3<f32>,
-
     pub name: Option<String>,
 }
 
@@ -62,16 +58,10 @@ impl Object {
                         v3: Vector3::from_data(ArrayStorage([t.v3])),
                     })
                     .collect(),
-                translation: Vector3::new(0.0, 0.0, 0.0),
-                rotation: Vector3::new(0.0, 0.0, 0.0),
-                scale: Vector3::new(1.0, 1.0, 1.0),
                 name: None,
             };
 
-            // A unit in KeloCAM is 1CM not 1MM
-            object.scale(Vector3::new(0.1, 0.1, 0.1));
-
-            let (min, max) = object.bounding_box();
+            let (min, max) = object.inf_sup();
 
             let delta = Vector3::new(
                 -min.x - (max.x - min.x) / 2.0,
@@ -79,11 +69,10 @@ impl Object {
                 -min.z,
             );
 
+            // Move object to center. TODO: find free space for object
             object.translate(delta);
-
-            // Reset scale and translation to 1
-            object.scale = Vector3::from_element(1.0);
-            object.translation = Vector3::from_element(0.0);
+            // Convert to KeloCAM Units
+            object.scale(Vector3::from_element(0.1));
 
             object
         })
@@ -109,62 +98,6 @@ impl Object {
         }
 
         verticies
-    }
-
-    pub fn translate(&mut self, translation: Vector3<f32>) {
-        let delta = translation - self.translation;
-
-        for triangle in self.triangles.iter_mut() {
-            triangle.v1 += delta;
-            triangle.v2 += delta;
-            triangle.v3 += delta;
-        }
-
-        self.translation = translation;
-    }
-
-    pub fn scale(&mut self, scale: Vector3<f32>) {
-        let delta = scale.component_div(&self.scale);
-
-        for triangle in self.triangles.iter_mut() {
-            triangle.v1.component_mul_assign(&delta);
-            triangle.v2.component_mul_assign(&delta);
-            triangle.v3.component_mul_assign(&delta);
-        }
-
-        self.scale = scale;
-    }
-
-    pub fn rotate(&mut self, rotation: Vector3<f32>) {
-        let old_inverse =
-            Matrix4::from_euler_angles(self.rotation.x, self.rotation.y, self.rotation.z)
-                .try_inverse()
-                .unwrap();
-        let new = Matrix4::from_euler_angles(rotation.x, rotation.y, rotation.z);
-
-        let delta = new * old_inverse;
-
-        for triangle in self.triangles.iter_mut() {
-            triangle.v1 = delta.transform_vector(&triangle.v1);
-            triangle.v2 = delta.transform_vector(&triangle.v2);
-            triangle.v3 = delta.transform_vector(&triangle.v3);
-            triangle.normal = delta.transform_vector(&triangle.normal);
-        }
-
-        self.rotation = rotation;
-    }
-
-    /// Returns the bounding box of the object as min and max vector
-    pub fn bounding_box(&self) -> (Vector3<f32>, Vector3<f32>) {
-        let mut min = Vector3::from_element(std::f32::INFINITY);
-        let mut max = Vector3::from_element(std::f32::NEG_INFINITY);
-
-        for triangle in self.triangles.iter() {
-            min = min.inf(&triangle.v1.inf(&triangle.v2.inf(&triangle.v3)));
-            max = max.sup(&triangle.v1.sup(&triangle.v2.sup(&triangle.v3)));
-        }
-
-        (min, max)
     }
 
     /// Z-Slice the model. TODO: Also slice on other axies
@@ -199,5 +132,48 @@ impl Object {
         }
 
         lines
+    }
+
+    pub fn translate(&mut self, delta: Vector3<f32>) {
+        for triangle in self.triangles.iter_mut() {
+            triangle.v1 += delta;
+            triangle.v2 += delta;
+            triangle.v3 += delta;
+        }
+    }
+
+    pub fn scale(&mut self, delta: Vector3<f32>) {
+        for triangle in self.triangles.iter_mut() {
+            triangle.v1.component_mul_assign(&delta);
+            triangle.v2.component_mul_assign(&delta);
+            triangle.v3.component_mul_assign(&delta);
+        }
+    }
+
+    pub fn rotate(&mut self, delta: Vector3<f32>) {
+        let delta = Matrix4::from_euler_angles(delta.x, delta.y, delta.z);
+
+        for triangle in self.triangles.iter_mut() {
+            triangle.v1 = delta.transform_vector(&triangle.v1);
+            triangle.v2 = delta.transform_vector(&triangle.v2);
+            triangle.v3 = delta.transform_vector(&triangle.v3);
+            triangle.normal = delta.transform_vector(&triangle.normal);
+        }
+    }
+
+    pub fn inf_sup(&self) -> (Vector3<f32>, Vector3<f32>) {
+        let mut inf = Vector3::from_element(std::f32::INFINITY);
+        let mut sup = Vector3::from_element(std::f32::NEG_INFINITY);
+
+        for triangle in self.triangles.iter() {
+            inf = inf.inf(&triangle.v1.inf(&triangle.v2.inf(&triangle.v3)));
+            sup = sup.sup(&triangle.v1.sup(&triangle.v2.sup(&triangle.v3)));
+        }
+
+        (inf, sup)
+    }
+
+    pub fn ui(&mut self, ui: &mut egui::Ui) {
+        ui.label("Some Object");
     }
 }

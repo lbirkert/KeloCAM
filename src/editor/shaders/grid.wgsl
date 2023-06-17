@@ -47,6 +47,10 @@ fn fs_main(@location(1) vpos: vec2<f32>) -> @location(0) vec4<f32> {
         color = max(color, grid(vpos * 100.0) * 0.3);
     }
 
+    if color.w == 0.0 {
+        discard;
+    }
+
     return color;
 }
 

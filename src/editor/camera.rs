@@ -15,21 +15,21 @@ use eframe::wgpu::util::DeviceExt;
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod)]
-pub struct CameraUniformData {
+pub struct UniformData {
     // The projection of the camera
     proj: [[f32; 4]; 4],
     // The position of the camera
     pos: [f32; 4],
 }
 
-pub struct CameraUniform {
+pub struct Uniform {
     pub bind_group_layout: wgpu::BindGroupLayout,
     pub bind_group: wgpu::BindGroup,
     pub buffer: wgpu::Buffer,
 }
 
-impl CameraUniform {
-    pub fn new(device: &Arc<wgpu::Device>, data: CameraUniformData) -> Self {
+impl Uniform {
+    pub fn new(device: &Arc<wgpu::Device>, data: UniformData) -> Self {
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("camera"),
             contents: bytemuck::cast_slice(&[data]),
@@ -67,7 +67,7 @@ impl CameraUniform {
     }
 
     // TODO: Find out if method is really necessary
-    pub fn update(&self, queue: &wgpu::Queue, data: CameraUniformData) {
+    pub fn update(&self, queue: &wgpu::Queue, data: UniformData) {
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[data]));
     }
 }
@@ -109,11 +109,11 @@ impl Camera {
             + self.position
     }
 
-    pub fn uniform(&self) -> CameraUniformData {
+    pub fn uniform(&self) -> UniformData {
         let eye = self.eye();
         let proj = (self.projection() * self.view(eye)).transpose();
 
-        CameraUniformData {
+        UniformData {
             proj: proj.into(),
             pos: Vector4::new(eye.x, eye.y, eye.z, self.zoom).into(),
         }

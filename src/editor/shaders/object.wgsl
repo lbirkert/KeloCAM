@@ -32,7 +32,7 @@ fn vs_main(in: VertexIn) -> VertexOut {
 
     // Disable rendering of invisible faces
     if out.light <= 0.0 {
-        out.pos = vec4(0.0);
+        discard;
     }
 
     return out;

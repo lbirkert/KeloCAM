@@ -5,10 +5,10 @@ use std::future::Future;
 use std::pin::Pin;
 use std::task::Poll;
 
-use crate::object::Object;
-use crate::widget::viewer::Viewer;
-
-use crate::view::{monitor::MonitorView, prepare::PrepareView, View};
+use crate::{
+    editor::Editor,
+    view::{monitor::MonitorView, prepare::PrepareView, View},
+};
 
 pub struct KeloApp {
     file_dialog: Option<Pin<Box<dyn Future<Output = Option<FileHandle>>>>>,
@@ -18,7 +18,7 @@ pub struct KeloApp {
     monitor: MonitorView,
     prepare: PrepareView,
 
-    viewer: Viewer,
+    editor: Editor,
 }
 
 impl KeloApp {
@@ -27,14 +27,14 @@ impl KeloApp {
         // This is also where you can customize the look and feel of egui using
         // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
 
-        let viewer = Viewer::new(cc).expect("Error while creating viewer");
+        let editor = Editor::new(cc).expect("Error while creating editor");
 
         Self {
             file_dialog: None,
             view: View::Prepare,
             monitor: MonitorView::default(),
             prepare: PrepareView::default(),
-            viewer,
+            editor,
         }
     }
 }
@@ -45,12 +45,12 @@ impl eframe::App for KeloApp {
             if let Poll::Ready(handle) = async { futures::poll!(file_dialog.as_mut()) }.block_on() {
                 self.file_dialog = None;
 
-                if let Some(handle) = handle {
+                if let Some(_handle) = handle {
                     async {
-                        if let Ok(object) = Object::from_stl(handle.read().await) {
-                            self.viewer.objects.push(object);
-                            self.viewer.object_changed = true;
-                        }
+                        //if let Ok(object) = Object::from_stl(handle.read().await) {
+                        //    self.viewer.objects.push(object);
+                        //    self.viewer.object_changed = true;
+                        //}
                     }
                     .block_on();
                 }
@@ -89,7 +89,7 @@ impl eframe::App for KeloApp {
 
         match self.view {
             View::Monitor => self.monitor.show(ctx),
-            View::Prepare => self.prepare.show(ctx, &mut self.viewer),
+            View::Prepare => self.prepare.show(ctx, &mut self.editor),
             _ => {}
         };
     }
