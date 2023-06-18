@@ -1,12 +1,15 @@
+use egui::vec2;
 use nalgebra::Vector3;
 
-use super::Entity;
+use super::{sidebar, Entity, Message};
 
 pub struct Group {
     pub name: String,
     pub expanded: bool,
 
     pub entities: Vec<Entity>,
+
+    pub id: u32,
 }
 
 impl Group {
@@ -41,22 +44,35 @@ impl Group {
         (inf, sup)
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui, group_icon: &egui::TextureHandle) {
+    pub fn ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        sidebar: &mut sidebar::Sidebar,
+        messages: &mut Vec<Message>,
+    ) {
         ui.horizontal(|ui| {
-            ui.add(egui::Image::new(group_icon, group_icon.size_vec2()));
-            let response = ui.selectable_label(false, self.name.as_str());
+            ui.add(egui::Image::new(&sidebar.group_icon, vec2(16.0, 16.0)));
+            let response = ui.selectable_label(sidebar.selected == self.id, self.name.as_str());
 
             if response.double_clicked() {
                 self.expanded ^= true;
             }
 
-            response.context_menu(|ui| if ui.button("Delete").clicked() {});
+            if response.clicked() {
+                sidebar.selected = self.id;
+            }
+
+            response.context_menu(|ui| {
+                if ui.button("Delete").clicked() {
+                    messages.push(Message::Delete(self.id))
+                }
+            });
         });
 
         if self.expanded {
             ui.indent(0, |ui| {
                 for entity in self.entities.iter_mut() {
-                    entity.ui(ui, group_icon);
+                    entity.ui(ui, sidebar, messages);
                 }
             });
         }

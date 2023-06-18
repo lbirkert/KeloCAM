@@ -6,6 +6,8 @@ pub mod group;
 pub mod object;
 pub mod toolpath;
 
+pub mod sidebar;
+
 pub mod grid;
 
 pub mod camera;
@@ -48,18 +50,45 @@ impl Entity {
         }
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui, group_icon: &egui::TextureHandle) {
+    pub fn ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        sidebar: &mut sidebar::Sidebar,
+        messages: &mut Vec<Message>,
+    ) {
         match self {
             Entity::Object(v) => v.ui(ui),
-            Entity::Group(v) => v.ui(ui, group_icon),
+            Entity::Group(v) => v.ui(ui, sidebar, messages),
         }
     }
+
+    pub fn id(&self) -> u32 {
+        match self {
+            Entity::Object(v) => v.id,
+            Entity::Group(v) => v.id,
+        }
+    }
+
+    pub fn scale_at(&mut self, origin: Vector3<f32>, delta: Vector3<f32>) {
+        self.translate(-origin);
+        self.scale(delta);
+        self.translate(origin);
+    }
+
+    pub fn rotate_at(&mut self, origin: Vector3<f32>, delta: Vector3<f32>) {
+        self.translate(-origin);
+        self.rotate(delta);
+        self.translate(origin);
+    }
 }
+
+pub struct SidebarState {}
 
 const SAFE_FRAC_PI_2: f32 = std::f32::consts::FRAC_PI_2 - 0.0001;
 
 pub struct Editor {
     camera: camera::Camera,
+    sidebar: Option<sidebar::Sidebar>,
 
     pub entities: Vec<Entity>,
 }
@@ -92,12 +121,15 @@ impl Editor {
             entities: vec![Entity::Group(group::Group {
                 name: "My group".into(),
                 expanded: true,
+                id: 1,
                 entities: vec![Entity::Group(group::Group {
                     name: "My second group".into(),
                     expanded: false,
                     entities: vec![],
+                    id: 2,
                 })],
             })],
+            sidebar: None,
         })
     }
 
@@ -171,6 +203,38 @@ impl Editor {
 
         ui.painter().add(callback);
     }
+
+    fn delete_recursive(entities: &mut Vec<Entity>, id: u32) -> bool {
+        for (i, entity) in entities.iter_mut().enumerate() {
+            if entity.id() == id {
+                entities.remove(i);
+                return true;
+            } else if let Entity::Group(group) = entity {
+                if Self::delete_recursive(&mut group.entities, id) {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+
+    pub fn sidebar(&mut self, ui: &mut egui::Ui) {
+        let sidebar = self
+            .sidebar
+            .get_or_insert_with(|| sidebar::Sidebar::load(ui.ctx()));
+
+        let mut messages = Vec::new();
+        for entity in self.entities.iter_mut() {
+            entity.ui(ui, sidebar, &mut messages);
+        }
+
+        for message in messages.iter() {
+            match message {
+                Message::Delete(id) => Self::delete_recursive(&mut self.entities, *id),
+            };
+        }
+    }
 }
 
 pub struct Renderer {
@@ -183,4 +247,8 @@ impl Renderer {
         render_pass.set_bind_group(0, &self.camera_uniform.bind_group, &[]);
         self.grid_renderer.render(render_pass);
     }
+}
+
+pub enum Message {
+    Delete(u32),
 }

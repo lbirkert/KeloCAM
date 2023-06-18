@@ -1,5 +1,6 @@
 use nalgebra::Vector3;
 
+// TODO: Implement
 pub struct Toolpath {
-    points: Vec<Vector3<f32>>,
+    pub points: Vec<Vector3<f32>>,
 }

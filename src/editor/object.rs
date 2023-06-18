@@ -42,11 +42,14 @@ pub struct Object {
     pub triangles: Vec<Triangle>,
 
     pub name: Option<String>,
+    pub id: u32,
 }
 
 impl Object {
-    pub fn from_stl(data: Vec<u8>) -> std::io::Result<Self> {
+    pub fn from_stl(data: Vec<u8>, id_counter: &mut u32) -> std::io::Result<Self> {
         stl::read_stl(&mut Cursor::new(data)).map(|stl| {
+            *id_counter += 1;
+
             let mut object = Self {
                 triangles: stl
                     .triangles
@@ -59,6 +62,7 @@ impl Object {
                     })
                     .collect(),
                 name: None,
+                id: *id_counter,
             };
 
             let (min, max) = object.inf_sup();
