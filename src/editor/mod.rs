@@ -57,7 +57,7 @@ impl Entity {
         messages: &mut Vec<Message>,
     ) {
         match self {
-            Entity::Object(v) => v.ui(ui),
+            Entity::Object(v) => v.ui(ui, sidebar, messages),
             Entity::Group(v) => v.ui(ui, sidebar, messages),
         }
     }
@@ -82,15 +82,18 @@ impl Entity {
     }
 }
 
-pub struct SidebarState {}
-
 const SAFE_FRAC_PI_2: f32 = std::f32::consts::FRAC_PI_2 - 0.0001;
 
+#[derive(Default)]
 pub struct Editor {
     camera: camera::Camera,
     sidebar: Option<sidebar::Sidebar>,
 
     pub entities: Vec<Entity>,
+    pub id_counter: u32,
+
+    pub object_changed: bool,
+    pub object_verticies: u32,
 }
 
 impl Editor {
@@ -107,29 +110,25 @@ impl Editor {
             &camera_uniform.bind_group_layout,
         );
 
+        let object_renderer = object::Renderer::new(
+            device,
+            wgpu_render_state.target_format,
+            &camera_uniform.bind_group_layout,
+        );
+
         wgpu_render_state
             .renderer
             .write()
             .paint_callback_resources
             .insert(Renderer {
                 grid_renderer,
+                object_renderer,
                 camera_uniform,
             });
 
         Some(Self {
             camera,
-            entities: vec![Entity::Group(group::Group {
-                name: "My group".into(),
-                expanded: true,
-                id: 1,
-                entities: vec![Entity::Group(group::Group {
-                    name: "My second group".into(),
-                    expanded: false,
-                    entities: vec![],
-                    id: 2,
-                })],
-            })],
-            sidebar: None,
+            ..Default::default()
         })
     }
 
@@ -183,17 +182,34 @@ impl Editor {
 
         let uniform = self.camera.uniform();
 
+        let object_vertex_buffer = if self.object_changed {
+            let mut verticies = Vec::new();
+            Self::compute_object_verticies(&mut self.entities, &mut verticies);
+            self.object_verticies = verticies.len() as u32;
+            Some(verticies)
+        } else {
+            None
+        };
+        let object_verticies = self.object_verticies;
+
         let cb = egui_wgpu::CallbackFn::new()
             .prepare(move |_device, queue, _encoder, paint_callback_resources| {
                 let renderer: &Renderer = paint_callback_resources.get().unwrap();
 
                 renderer.camera_uniform.update(queue, uniform);
+                if let Some(ref object_vertex_buffer) = object_vertex_buffer {
+                    queue.write_buffer(
+                        &renderer.object_renderer.vertex_buffer,
+                        0,
+                        bytemuck::cast_slice(object_vertex_buffer.as_slice()),
+                    );
+                }
 
                 Vec::new()
             })
             .paint(move |_info, render_pass, paint_callback_resources| {
                 let renderer: &Renderer = paint_callback_resources.get().unwrap();
-                renderer.render(render_pass);
+                renderer.render(render_pass, object_verticies);
             });
 
         let callback = egui::PaintCallback {
@@ -219,6 +235,17 @@ impl Editor {
         false
     }
 
+    fn compute_object_verticies(entities: &mut [Entity], verticies: &mut Vec<object::Vertex>) {
+        for entity in entities.iter_mut() {
+            match entity {
+                Entity::Object(object) => verticies.append(&mut object.verticies()),
+                Entity::Group(group) => {
+                    Self::compute_object_verticies(&mut group.entities, verticies)
+                }
+            };
+        }
+    }
+
     pub fn sidebar(&mut self, ui: &mut egui::Ui) {
         let sidebar = self
             .sidebar
@@ -240,12 +267,16 @@ impl Editor {
 pub struct Renderer {
     camera_uniform: camera::Uniform,
     grid_renderer: grid::Renderer,
+    object_renderer: object::Renderer,
 }
 
 impl Renderer {
-    fn render<'rp>(&'rp self, render_pass: &mut wgpu::RenderPass<'rp>) {
+    fn render<'rp>(&'rp self, render_pass: &mut wgpu::RenderPass<'rp>, object_verticies: u32) {
         render_pass.set_bind_group(0, &self.camera_uniform.bind_group, &[]);
         self.grid_renderer.render(render_pass);
+        if object_verticies != 0 {
+            self.object_renderer.render(render_pass, object_verticies);
+        }
     }
 }
 

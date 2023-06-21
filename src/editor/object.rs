@@ -1,8 +1,11 @@
-use std::io::Cursor;
+use std::{io::Cursor, sync::Arc};
 
 use eframe::wgpu;
+use egui::vec2;
 use nalgebra::{ArrayStorage, Matrix4, Vector2, Vector3};
 use stl;
+
+use super::{sidebar, Message};
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, bytemuck::Zeroable, bytemuck::Pod)]
@@ -41,12 +44,12 @@ pub const VERTEX_BUFFER_LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::Vertex
 pub struct Object {
     pub triangles: Vec<Triangle>,
 
-    pub name: Option<String>,
+    pub name: String,
     pub id: u32,
 }
 
 impl Object {
-    pub fn from_stl(data: Vec<u8>, id_counter: &mut u32) -> std::io::Result<Self> {
+    pub fn from_stl(name: String, data: Vec<u8>, id_counter: &mut u32) -> std::io::Result<Self> {
         stl::read_stl(&mut Cursor::new(data)).map(|stl| {
             *id_counter += 1;
 
@@ -61,22 +64,21 @@ impl Object {
                         v3: Vector3::from_data(ArrayStorage([t.v3])),
                     })
                     .collect(),
-                name: None,
                 id: *id_counter,
+                name,
             };
 
-            let (min, max) = object.inf_sup();
+            // Convert to KeloCAM Units
+            object.scale(Vector3::from_element(0.1));
 
+            // Move object to center. TODO: find free space for object
+            let (min, max) = object.inf_sup();
             let delta = Vector3::new(
                 -min.x - (max.x - min.x) / 2.0,
                 -min.y - (max.y - min.y) / 2.0,
                 -min.z,
             );
-
-            // Move object to center. TODO: find free space for object
             object.translate(delta);
-            // Convert to KeloCAM Units
-            object.scale(Vector3::from_element(0.1));
 
             object
         })
@@ -177,7 +179,103 @@ impl Object {
         (inf, sup)
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.label("Some Object");
+    pub fn ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        sidebar: &mut sidebar::Sidebar,
+        messages: &mut Vec<Message>,
+    ) {
+        ui.horizontal(|ui| {
+            ui.add(egui::Image::new(&sidebar.object_icon, vec2(16.0, 16.0)));
+
+            let response = ui.selectable_label(sidebar.selected == self.id, self.name.as_str());
+
+            if response.clicked() {
+                sidebar.selected = self.id;
+            }
+
+            response.context_menu(|ui| {
+                if ui.button("Delete").clicked() {
+                    messages.push(Message::Delete(self.id));
+                }
+            });
+        });
+    }
+}
+
+pub struct Renderer {
+    pub vertex_buffer: wgpu::Buffer,
+    pipeline: wgpu::RenderPipeline,
+}
+
+impl Renderer {
+    pub fn new(
+        device: &Arc<wgpu::Device>,
+        format: wgpu::TextureFormat,
+        camera_bind_group_layout: &wgpu::BindGroupLayout,
+    ) -> Self {
+        let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("object"),
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            size: 10000 * VERTEX_SIZE as u64,
+            mapped_at_creation: false,
+        });
+
+        let color_target = wgpu::ColorTargetState {
+            format,
+            blend: None,
+            write_mask: wgpu::ColorWrites::ALL,
+        };
+
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("object"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("./shaders/object.wgsl").into()),
+        });
+
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("grid"),
+            bind_group_layouts: &[camera_bind_group_layout],
+            push_constant_ranges: &[],
+        });
+
+        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("object"),
+            layout: Some(&pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: "vs_main",
+                buffers: &[VERTEX_BUFFER_LAYOUT],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: "fs_main",
+                targets: &[Some(color_target)],
+            }),
+            primitive: wgpu::PrimitiveState::default(),
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: wgpu::TextureFormat::Depth32Float,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
+            multisample: wgpu::MultisampleState::default(),
+            multiview: None,
+        });
+
+        Self {
+            vertex_buffer,
+            pipeline,
+        }
+    }
+
+    pub fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, verticies: u32) {
+        render_pass.set_pipeline(&self.pipeline);
+        render_pass.set_vertex_buffer(
+            0,
+            self.vertex_buffer
+                .slice(0..verticies as u64 * VERTEX_SIZE as u64),
+        );
+        render_pass.draw(0..verticies, 0..1);
     }
 }

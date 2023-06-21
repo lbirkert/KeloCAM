@@ -6,7 +6,7 @@ use std::pin::Pin;
 use std::task::Poll;
 
 use crate::{
-    editor::Editor,
+    editor::{self, object::Object, Editor},
     view::{monitor::MonitorView, prepare::PrepareView, View},
 };
 
@@ -45,12 +45,16 @@ impl eframe::App for KeloApp {
             if let Poll::Ready(handle) = async { futures::poll!(file_dialog.as_mut()) }.block_on() {
                 self.file_dialog = None;
 
-                if let Some(_handle) = handle {
+                if let Some(handle) = handle {
                     async {
-                        //if let Ok(object) = Object::from_stl(handle.read().await) {
-                        //    self.viewer.objects.push(object);
-                        //    self.viewer.object_changed = true;
-                        //}
+                        if let Ok(object) = Object::from_stl(
+                            handle.file_name(),
+                            handle.read().await,
+                            &mut self.editor.id_counter,
+                        ) {
+                            self.editor.entities.push(editor::Entity::Object(object));
+                            self.editor.object_changed = true;
+                        }
                     }
                     .block_on();
                 }

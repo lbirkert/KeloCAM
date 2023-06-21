@@ -30,11 +30,6 @@ fn vs_main(in: VertexIn) -> VertexOut {
 
     out.light = dot(normal, view_normal);
 
-    // Disable rendering of invisible faces
-    if out.light <= 0.0 {
-        discard;
-    }
-
     return out;
 }
 

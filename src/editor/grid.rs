@@ -58,6 +58,6 @@ impl Renderer {
 
     pub fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
         render_pass.set_pipeline(&self.pipeline);
-        render_pass.draw(0..6, 0..2);
+        render_pass.draw(0..6, 0..1);
     }
 }
