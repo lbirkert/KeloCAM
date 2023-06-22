@@ -217,7 +217,7 @@ impl Renderer {
         let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("object"),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            size: 10000 * VERTEX_SIZE as u64,
+            size: 100000 * VERTEX_SIZE as u64,
             mapped_at_creation: false,
         });
 
