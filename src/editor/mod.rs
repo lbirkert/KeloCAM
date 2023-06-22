@@ -2,11 +2,10 @@ use eframe::{egui, egui_wgpu, wgpu};
 use nalgebra::{Matrix4, Vector3};
 use std::sync::Arc;
 
-pub mod group;
 pub mod object;
 pub mod toolpath;
 
-pub mod sidebar;
+pub mod state;
 
 pub mod grid;
 
@@ -14,7 +13,6 @@ pub mod camera;
 
 pub enum Entity {
     Object(object::Object),
-    Group(group::Group),
 }
 
 impl Entity {
@@ -22,7 +20,6 @@ impl Entity {
     pub fn scale(&mut self, delta: Vector3<f32>) {
         match self {
             Entity::Object(v) => v.scale(delta),
-            Entity::Group(v) => v.scale(delta),
         }
     }
 
@@ -30,14 +27,12 @@ impl Entity {
     pub fn translate(&mut self, delta: Vector3<f32>) {
         match self {
             Entity::Object(v) => v.translate(delta),
-            Entity::Group(v) => v.translate(delta),
         }
     }
     /// Rotate an entity using euler axies in radians.
     pub fn rotate(&mut self, delta: Vector3<f32>) {
         match self {
             Entity::Object(v) => v.rotate(delta),
-            Entity::Group(v) => v.rotate(delta),
         }
     }
 
@@ -46,26 +41,29 @@ impl Entity {
     pub fn inf_sup(&self) -> (Vector3<f32>, Vector3<f32>) {
         match self {
             Entity::Object(v) => v.inf_sup(),
-            Entity::Group(v) => v.inf_sup(),
         }
     }
 
     pub fn ui(
         &mut self,
         ui: &mut egui::Ui,
-        sidebar: &mut sidebar::Sidebar,
-        messages: &mut Vec<Message>,
+        state: &mut state::State,
+        messages: &mut Vec<state::Message>,
     ) {
         match self {
-            Entity::Object(v) => v.ui(ui, sidebar, messages),
-            Entity::Group(v) => v.ui(ui, sidebar, messages),
+            Entity::Object(v) => v.ui(ui, state, messages),
         }
     }
 
     pub fn id(&self) -> u32 {
         match self {
             Entity::Object(v) => v.id,
-            Entity::Group(v) => v.id,
+        }
+    }
+
+    pub fn set_id(&mut self, id: u32) {
+        match self {
+            Entity::Object(v) => v.id = id,
         }
     }
 
@@ -87,7 +85,6 @@ const SAFE_FRAC_PI_2: f32 = std::f32::consts::FRAC_PI_2 - 0.0001;
 #[derive(Default)]
 pub struct Editor {
     camera: camera::Camera,
-    sidebar: Option<sidebar::Sidebar>,
 
     pub entities: Vec<Entity>,
     pub id_counter: u32,
@@ -132,6 +129,11 @@ impl Editor {
         })
     }
 
+    pub fn remove(&mut self, id: u32) {
+        let index = self.entities.iter().position(|x| x.id() == id).unwrap();
+        self.entities.remove(index);
+    }
+
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         let available_size = ui.available_size();
 
@@ -170,8 +172,10 @@ impl Editor {
                     if let egui::Event::Scroll(v) = event {
                         if v[0] == 0.0 {
                             if v[1] > 0.0 {
+                                //self.camera.zoom += 0.001 * v[1];
                                 self.camera.zoom *= 1.0 + 0.001 * v[1];
                             } else if v[1] < 0.0 {
+                                //self.camera.zoom += 0.001 * v[1];
                                 self.camera.zoom /= 1.0 + 0.001 * -v[1];
                             }
                         }
@@ -184,7 +188,11 @@ impl Editor {
 
         let object_vertex_buffer = if self.object_changed {
             let mut verticies = Vec::new();
-            Self::compute_object_verticies(&mut self.entities, &mut verticies);
+            for entity in self.entities.iter() {
+                if let Entity::Object(object) = entity {
+                    verticies.append(&mut object.verticies());
+                }
+            }
             self.object_verticies = verticies.len() as u32;
             Some(verticies)
         } else {
@@ -220,47 +228,20 @@ impl Editor {
         ui.painter().add(callback);
     }
 
-    fn delete_recursive(entities: &mut Vec<Entity>, id: u32) -> bool {
-        for (i, entity) in entities.iter_mut().enumerate() {
-            if entity.id() == id {
-                entities.remove(i);
-                return true;
-            } else if let Entity::Group(group) = entity {
-                if Self::delete_recursive(&mut group.entities, id) {
-                    return true;
-                }
-            }
-        }
-
-        false
-    }
-
-    fn compute_object_verticies(entities: &mut [Entity], verticies: &mut Vec<object::Vertex>) {
-        for entity in entities.iter_mut() {
-            match entity {
-                Entity::Object(object) => verticies.append(&mut object.verticies()),
-                Entity::Group(group) => {
-                    Self::compute_object_verticies(&mut group.entities, verticies)
-                }
-            };
-        }
-    }
-
-    pub fn sidebar(&mut self, ui: &mut egui::Ui) {
-        let sidebar = self
-            .sidebar
-            .get_or_insert_with(|| sidebar::Sidebar::load(ui.ctx()));
-
+    pub fn sidebar(&mut self, state: &mut state::State, ui: &mut egui::Ui) {
         let mut messages = Vec::new();
         for entity in self.entities.iter_mut() {
-            entity.ui(ui, sidebar, &mut messages);
+            entity.ui(ui, state, &mut messages);
         }
 
         for message in messages.iter() {
-            match message {
-                Message::Delete(id) => Self::delete_recursive(&mut self.entities, *id),
-            };
+            message.process(self, state);
         }
+    }
+
+    pub fn uid(&mut self) -> u32 {
+        self.id_counter += 1;
+        self.id_counter
     }
 }
 
@@ -278,8 +259,4 @@ impl Renderer {
             self.object_renderer.render(render_pass, object_verticies);
         }
     }
-}
-
-pub enum Message {
-    Delete(u32),
 }

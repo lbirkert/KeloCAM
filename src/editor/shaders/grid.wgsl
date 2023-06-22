@@ -36,15 +36,21 @@ fn vs_main(@builtin(vertex_index) v_idx: u32) -> VertexOut {
     return out;
 }
 
+fn logn(a: f32, x: f32) -> f32 {
+    return log(x) / log(a);
+}
+
 @fragment
 fn fs_main(@location(1) vpos: vec2<f32>) -> @location(0) vec4<f32> {
+    let zoom = camera.view_pos.w;
+
     var color = grid(vpos) * 0.6;
 
-    color = max(color, grid(vpos * 10.0) * 0.4);
-
-    // check zoom level
-    if camera.view_pos.w > 0.5 {
-        color = max(color, grid(vpos * 100.0) * 0.3);
+    for (var i: f32 = 1.0; i < floor(logn(10.0, zoom)) + 4.0; i += 1.0) {
+        let fact = min(1.0, logn(10.0, zoom) - i + 3.0);
+        if fact > 0.0 {
+            color = max(color, grid(vpos * pow(10.0, i)) * pow(0.3, i) * fact);
+        }
     }
 
     if color.w == 0.0 {

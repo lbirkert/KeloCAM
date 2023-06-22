@@ -1,10 +1,15 @@
+use crate::editor::state::State;
 use crate::editor::Editor;
 
 #[derive(Default)]
-pub struct PrepareView {}
+pub struct PrepareView {
+    editor_state: Option<State>,
+}
 
 impl PrepareView {
     pub fn show(&mut self, ctx: &egui::Context, editor: &mut Editor) {
+        let state = self.editor_state.get_or_insert_with(|| State::load(ctx));
+
         egui::SidePanel::left("my_left_panel")
             .resizable(false)
             .show_separator_line(false)
@@ -12,7 +17,7 @@ impl PrepareView {
                 egui::ScrollArea::new([false, true]).show(ui, |ui| {
                     ui.heading("Editor");
 
-                    editor.sidebar(ui);
+                    editor.sidebar(state, ui);
                 });
             });
 

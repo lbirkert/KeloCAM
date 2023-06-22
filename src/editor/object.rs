@@ -5,7 +5,7 @@ use egui::vec2;
 use nalgebra::{ArrayStorage, Matrix4, Vector2, Vector3};
 use stl;
 
-use super::{sidebar, Message};
+use super::state;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, bytemuck::Zeroable, bytemuck::Pod)]
@@ -182,21 +182,26 @@ impl Object {
     pub fn ui(
         &mut self,
         ui: &mut egui::Ui,
-        sidebar: &mut sidebar::Sidebar,
-        messages: &mut Vec<Message>,
+        state: &mut state::State,
+        messages: &mut Vec<state::Message>,
     ) {
         ui.horizontal(|ui| {
-            ui.add(egui::Image::new(&sidebar.object_icon, vec2(16.0, 16.0)));
+            ui.add(egui::Image::new(&state.object_icon, vec2(16.0, 16.0)));
 
-            let response = ui.selectable_label(sidebar.selected == self.id, self.name.as_str());
+            let response =
+                ui.selectable_label(state.selected.contains(&self.id), self.name.as_str());
 
             if response.clicked() {
-                sidebar.selected = self.id;
+                if !ui.input(|i| i.modifiers.contains(egui::Modifiers::SHIFT)) {
+                    state.selected.clear();
+                }
+                state.selected.insert(self.id);
             }
 
             response.context_menu(|ui| {
                 if ui.button("Delete").clicked() {
-                    messages.push(Message::Delete(self.id));
+                    ui.close_menu();
+                    messages.push(state::Message::Delete(self.id));
                 }
             });
         });
