@@ -14,6 +14,7 @@ pub mod camera;
 
 pub enum Entity {
     Object(object::Object),
+    Toolpath(toolpath::Toolpath),
 }
 
 impl Entity {
@@ -21,6 +22,7 @@ impl Entity {
     pub fn scale(&mut self, delta: Vector3<f32>) {
         match self {
             Entity::Object(v) => v.scale(delta),
+            Entity::Toolpath(v) => v.scale(delta),
         }
     }
 
@@ -28,12 +30,14 @@ impl Entity {
     pub fn translate(&mut self, delta: Vector3<f32>) {
         match self {
             Entity::Object(v) => v.translate(delta),
+            Entity::Toolpath(v) => v.translate(delta),
         }
     }
     /// Rotate an entity using euler axies in radians.
     pub fn rotate(&mut self, delta: Vector3<f32>) {
         match self {
             Entity::Object(v) => v.rotate(delta),
+            Entity::Toolpath(v) => v.rotate(delta),
         }
     }
 
@@ -42,6 +46,7 @@ impl Entity {
     pub fn inf_sup(&self) -> (Vector3<f32>, Vector3<f32>) {
         match self {
             Entity::Object(v) => v.inf_sup(),
+            Entity::Toolpath(v) => v.inf_sup(),
         }
     }
 
@@ -53,18 +58,21 @@ impl Entity {
     ) {
         match self {
             Entity::Object(v) => v.ui(ui, state, messages),
+            Entity::Toolpath(v) => v.ui(ui, state, messages),
         }
     }
 
     pub fn id(&self) -> u32 {
         match self {
             Entity::Object(v) => v.id,
+            Entity::Toolpath(v) => v.id,
         }
     }
 
     pub fn set_id(&mut self, id: u32) {
         match self {
             Entity::Object(v) => v.id = id,
+            Entity::Toolpath(v) => v.id = id,
         }
     }
 

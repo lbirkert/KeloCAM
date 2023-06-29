@@ -1,11 +1,11 @@
 struct VertexOut {
     @builtin(position) pos: vec4<f32>,
-    @location(1) vpos: vec2<f32>,
+    @location(1) color: vec3<f32>,
 };
 
 struct VertexIn {
-    @location(0) pos: vec3<f32>,
-    @location(1) normal: vec3<f32>,
+    @location(0) pos: vec2<f32>,
+    @location(1) color: vec3<f32>,
 }
 
 struct Camera {
@@ -18,7 +18,13 @@ struct Camera {
 var<uniform> camera: Camera;
 
 @vertex
-fn vs_main(@location(0) pos: vec3<f32>) -> VertexOut {
+fn vs_main(in: VertexIn) -> VertexOut {
+    var out: VertexOut;
+
+    out.pos = vec4(in.pos, 0.0, 1.0);
+    out.color = in.color;
+
+    return out;
 }
 
 @fragment

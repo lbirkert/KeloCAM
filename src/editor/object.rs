@@ -7,20 +7,6 @@ use stl;
 
 use super::state;
 
-#[repr(C)]
-#[derive(Debug, Clone, Copy, bytemuck::Zeroable, bytemuck::Pod)]
-pub struct Vertex {
-    pos: [f32; 3],
-    normal: [f32; 3],
-}
-
-pub struct Triangle {
-    pub normal: Vector3<f32>,
-    pub v1: Vector3<f32>,
-    pub v2: Vector3<f32>,
-    pub v3: Vector3<f32>,
-}
-
 pub const VERTEX_SIZE: usize = std::mem::size_of::<Vertex>();
 pub const VERTEX_BUFFER_LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::VertexBufferLayout {
     array_stride: VERTEX_SIZE as u64,
@@ -40,6 +26,20 @@ pub const VERTEX_BUFFER_LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::Vertex
     ],
     step_mode: wgpu::VertexStepMode::Vertex,
 };
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, bytemuck::Zeroable, bytemuck::Pod)]
+pub struct Vertex {
+    pos: [f32; 3],
+    normal: [f32; 3],
+}
+
+pub struct Triangle {
+    pub normal: Vector3<f32>,
+    pub v1: Vector3<f32>,
+    pub v2: Vector3<f32>,
+    pub v3: Vector3<f32>,
+}
 
 pub struct Object {
     pub triangles: Vec<Triangle>,
