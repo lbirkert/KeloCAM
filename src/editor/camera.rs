@@ -80,13 +80,17 @@ pub struct Camera {
     pub zoom: f32,
 
     aspect: f32,
-    fovy: f32,
-    znear: f32,
-    zfar: f32,
+    width: f32,
+    height: f32,
+    pub fovy: f32,
+    pub znear: f32,
+    pub zfar: f32,
 }
 
 impl Camera {
     pub fn resize(&mut self, width: f32, height: f32) {
+        self.width = width;
+        self.height = height;
         self.aspect = width / height;
     }
 
@@ -118,6 +122,15 @@ impl Camera {
             pos: Vector4::new(eye.x, eye.y, eye.z, self.zoom).into(),
         }
     }
+
+    /// Returns a normal vector describing the direction of a ray going through this point of the
+    /// screen. Can be used to convert screen space into 3d coords by applying a plane intersection
+    pub fn screen_ray_normal(&self, x: f32, y: f32) -> Vector3<f32> {
+        let x = (2.0 * x - self.width) / self.height;
+        let y = (2.0 * y - self.height) / self.height;
+        Matrix4::from_euler_angles(self.pitch, self.yaw, 0.0)
+            .transform_vector(&Vector3::new(x, y, 1.0 / (self.fovy / 2.0).tan()).normalize())
+    }
 }
 
 impl Default for Camera {
@@ -133,6 +146,9 @@ impl Default for Camera {
             fovy: std::f32::consts::FRAC_PI_4,
             znear: 0.01,
             zfar: 100.0,
+
+            height: 400.0,
+            width: 400.0,
         }
     }
 }

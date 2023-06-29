@@ -2,6 +2,7 @@ use eframe::{egui, egui_wgpu, wgpu};
 use nalgebra::{Matrix4, Vector3};
 use std::sync::Arc;
 
+pub mod arrow;
 pub mod object;
 pub mod toolpath;
 
@@ -91,6 +92,10 @@ pub struct Editor {
 
     pub object_changed: bool,
     pub object_verticies: u32,
+
+    pub arrows: Vec<arrow::Arrow>,
+    pub arrow_changed: bool,
+    pub arrow_verticies: u32,
 }
 
 impl Editor {
@@ -113,6 +118,12 @@ impl Editor {
             &camera_uniform.bind_group_layout,
         );
 
+        let arrow_renderer = arrow::Renderer::new(
+            device,
+            wgpu_render_state.target_format,
+            &camera_uniform.bind_group_layout,
+        );
+
         wgpu_render_state
             .renderer
             .write()
@@ -120,6 +131,7 @@ impl Editor {
             .insert(Renderer {
                 grid_renderer,
                 object_renderer,
+                arrow_renderer,
                 camera_uniform,
             });
 
@@ -186,7 +198,8 @@ impl Editor {
 
         let uniform = self.camera.uniform();
 
-        let object_vertex_buffer = if self.object_changed {
+        // Generate object verticies
+        let object_vertex_data = {
             let mut verticies = Vec::new();
             for entity in self.entities.iter() {
                 if let Entity::Object(object) = entity {
@@ -194,30 +207,46 @@ impl Editor {
                 }
             }
             self.object_verticies = verticies.len() as u32;
-            Some(verticies)
-        } else {
-            None
+            verticies
         };
         let object_verticies = self.object_verticies;
+
+        // Generate arrow verticies
+        let arrow_vertex_data = {
+            let mut verticies = Vec::new();
+            for arrow in self.arrows.iter() {
+                verticies.append(&mut arrow.verticies());
+            }
+            self.arrow_verticies = verticies.len() as u32;
+            verticies
+        };
+        let arrow_verticies = self.arrow_verticies;
 
         let cb = egui_wgpu::CallbackFn::new()
             .prepare(move |_device, queue, _encoder, paint_callback_resources| {
                 let renderer: &Renderer = paint_callback_resources.get().unwrap();
 
                 renderer.camera_uniform.update(queue, uniform);
-                if let Some(ref object_vertex_buffer) = object_vertex_buffer {
-                    queue.write_buffer(
-                        &renderer.object_renderer.vertex_buffer,
-                        0,
-                        bytemuck::cast_slice(object_vertex_buffer.as_slice()),
-                    );
-                }
+
+                // Update object vertex buffer
+                queue.write_buffer(
+                    &renderer.object_renderer.vertex_buffer,
+                    0,
+                    bytemuck::cast_slice(object_vertex_data.as_slice()),
+                );
+
+                // Update arrow vertex buffer
+                queue.write_buffer(
+                    &renderer.arrow_renderer.vertex_buffer,
+                    0,
+                    bytemuck::cast_slice(arrow_vertex_data.as_slice()),
+                );
 
                 Vec::new()
             })
             .paint(move |_info, render_pass, paint_callback_resources| {
                 let renderer: &Renderer = paint_callback_resources.get().unwrap();
-                renderer.render(render_pass, object_verticies);
+                renderer.render(render_pass, object_verticies, arrow_verticies);
             });
 
         let callback = egui::PaintCallback {
@@ -249,14 +278,23 @@ pub struct Renderer {
     camera_uniform: camera::Uniform,
     grid_renderer: grid::Renderer,
     object_renderer: object::Renderer,
+    arrow_renderer: arrow::Renderer,
 }
 
 impl Renderer {
-    fn render<'rp>(&'rp self, render_pass: &mut wgpu::RenderPass<'rp>, object_verticies: u32) {
+    fn render<'rp>(
+        &'rp self,
+        render_pass: &mut wgpu::RenderPass<'rp>,
+        object_verticies: u32,
+        arrow_verticies: u32,
+    ) {
         render_pass.set_bind_group(0, &self.camera_uniform.bind_group, &[]);
         self.grid_renderer.render(render_pass);
         if object_verticies != 0 {
             self.object_renderer.render(render_pass, object_verticies);
+        }
+        if arrow_verticies != 0 {
+            self.arrow_renderer.render(render_pass, arrow_verticies);
         }
     }
 }
