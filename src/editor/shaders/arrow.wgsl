@@ -23,7 +23,7 @@ fn vs_main(@builtin(vertex_index) v_idx: u32, in: VertexIn) -> VertexOut {
 
     out.pos = vec4<f32>(in.pos.xzy, 1.0) * camera.view_proj;
     out.color = in.color;
-
+    
     return out;
 }
 

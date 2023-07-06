@@ -23,6 +23,11 @@ pub const VERTEX_BUFFER_LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::Vertex
             offset: 4 * 3,
             shader_location: 1,
         },
+        wgpu::VertexAttribute {
+            format: wgpu::VertexFormat::Float32x3,
+            offset: 4 * 6,
+            shader_location: 2,
+        },
     ],
     step_mode: wgpu::VertexStepMode::Vertex,
 };
@@ -32,6 +37,7 @@ pub const VERTEX_BUFFER_LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::Vertex
 pub struct Vertex {
     pos: [f32; 3],
     normal: [f32; 3],
+    color: [f32; 3],
 }
 
 pub struct Triangle {
@@ -39,10 +45,35 @@ pub struct Triangle {
     pub v1: Vector3<f32>,
     pub v2: Vector3<f32>,
     pub v3: Vector3<f32>,
+
+    // Temporary
+    pub color: [f32; 3],
+}
+
+impl Triangle {
+    pub fn append_verticies(&self, verticies: &mut Vec<Vertex>) {
+        verticies.push(Vertex {
+            pos: self.v1.into(),
+            normal: self.normal.into(),
+            color: self.color,
+        });
+        verticies.push(Vertex {
+            pos: self.v2.into(),
+            normal: self.normal.into(),
+            color: self.color,
+        });
+        verticies.push(Vertex {
+            pos: self.v3.into(),
+            normal: self.normal.into(),
+            color: self.color,
+        });
+    }
 }
 
 pub struct Object {
     pub triangles: Vec<Triangle>,
+
+    pub color: [f32; 3],
 
     pub name: String,
     pub id: u32,
@@ -62,8 +93,10 @@ impl Object {
                         v1: Vector3::from_data(ArrayStorage([t.v1])),
                         v2: Vector3::from_data(ArrayStorage([t.v2])),
                         v3: Vector3::from_data(ArrayStorage([t.v3])),
+                        color: [0.7, 0.7, 0.7],
                     })
                     .collect(),
+                color: [1.0, 0.0, 0.0],
                 id: *id_counter,
                 name,
             };
@@ -89,18 +122,7 @@ impl Object {
             Vec::with_capacity(std::mem::size_of::<Vertex>() * self.triangles.len() * 3);
 
         for triangle in &self.triangles {
-            verticies.push(Vertex {
-                pos: triangle.v1.into(),
-                normal: triangle.normal.into(),
-            });
-            verticies.push(Vertex {
-                pos: triangle.v2.into(),
-                normal: triangle.normal.into(),
-            });
-            verticies.push(Vertex {
-                pos: triangle.v3.into(),
-                normal: triangle.normal.into(),
-            });
+            triangle.append_verticies(&mut verticies);
         }
 
         verticies

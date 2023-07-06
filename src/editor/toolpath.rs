@@ -41,6 +41,16 @@ pub enum Segment {
     Point(Vector3<f32>),
 }
 
+impl Segment {
+    pub fn translate(&mut self, delta: Vector3<f32>) {
+        match self {
+            Segment::Line(mut pos) => pos += delta,
+            Segment::Point(mut pos) => pos += delta,
+            _ => {}
+        }
+    }
+}
+
 pub struct Toolpath {
     pub segments: Vec<Segment>,
     pub id: u32,
@@ -48,22 +58,6 @@ pub struct Toolpath {
 }
 
 impl Toolpath {
-    pub fn translate(&mut self, _: Vector3<f32>) {
-        unimplemented!("Translate unimplemented for toolpath");
-    }
-
-    pub fn scale(&mut self, _: Vector3<f32>) {
-        unimplemented!("Scale unimplemented for toolpath");
-    }
-
-    pub fn rotate(&mut self, _: Vector3<f32>) {
-        unimplemented!("Rotate unimplemented for toolpath");
-    }
-
-    pub fn inf_sup(&self) -> (Vector3<f32>, Vector3<f32>) {
-        unimplemented!("Inf/Sup unimplemented for toolpath");
-    }
-
     pub fn ui(
         &mut self,
         ui: &mut egui::Ui,

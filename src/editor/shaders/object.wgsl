@@ -1,11 +1,12 @@
 struct VertexIn {
     @location(0) pos: vec3<f32>,
     @location(1) normal: vec3<f32>,
+    @location(2) color: vec3<f32>,
 };
 
 struct VertexOut {
     @builtin(position) pos: vec4<f32>,
-    @location(1) light: f32,
+    @location(1) color: vec3<f32>,
 };
 
 struct Camera {
@@ -28,12 +29,13 @@ fn vs_main(in: VertexIn) -> VertexOut {
     let normal = in.normal.xzy;
     let view_normal = normalize(camera.pos.xyz - world_pos.xyz);
 
-    out.light = dot(normal, view_normal);
+    let light = dot(normal, view_normal) * 0.4 + 0.6;
+    out.color = in.color * light;
 
     return out;
 }
 
 @fragment
 fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
-    return vec4<f32>(vec3<f32>(0.3 + in.light * 0.3), 1.0);
+    return vec4<f32>(in.color, 1.0);
 }

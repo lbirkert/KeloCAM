@@ -6,6 +6,8 @@ pub mod arrow;
 pub mod object;
 pub mod toolpath;
 
+pub mod ray;
+
 pub mod state;
 
 pub mod grid;
@@ -18,38 +20,6 @@ pub enum Entity {
 }
 
 impl Entity {
-    /// Scale an entity by a given vector.
-    pub fn scale(&mut self, delta: Vector3<f32>) {
-        match self {
-            Entity::Object(v) => v.scale(delta),
-            Entity::Toolpath(v) => v.scale(delta),
-        }
-    }
-
-    /// Translate an entity by a given vector.
-    pub fn translate(&mut self, delta: Vector3<f32>) {
-        match self {
-            Entity::Object(v) => v.translate(delta),
-            Entity::Toolpath(v) => v.translate(delta),
-        }
-    }
-    /// Rotate an entity using euler axies in radians.
-    pub fn rotate(&mut self, delta: Vector3<f32>) {
-        match self {
-            Entity::Object(v) => v.rotate(delta),
-            Entity::Toolpath(v) => v.rotate(delta),
-        }
-    }
-
-    /// Returns the entity's infimum (aka. componentwise min) and the
-    /// supremum (aka. componentwise max) vector (can be used as bounding box).
-    pub fn inf_sup(&self) -> (Vector3<f32>, Vector3<f32>) {
-        match self {
-            Entity::Object(v) => v.inf_sup(),
-            Entity::Toolpath(v) => v.inf_sup(),
-        }
-    }
-
     pub fn ui(
         &mut self,
         ui: &mut egui::Ui,
@@ -74,18 +44,6 @@ impl Entity {
             Entity::Object(v) => v.id = id,
             Entity::Toolpath(v) => v.id = id,
         }
-    }
-
-    pub fn scale_at(&mut self, origin: Vector3<f32>, delta: Vector3<f32>) {
-        self.translate(-origin);
-        self.scale(delta);
-        self.translate(origin);
-    }
-
-    pub fn rotate_at(&mut self, origin: Vector3<f32>, delta: Vector3<f32>) {
-        self.translate(-origin);
-        self.rotate(delta);
-        self.translate(origin);
     }
 }
 
@@ -185,6 +143,8 @@ impl Editor {
             self.camera.position += delta;
         }
 
+        let mut camera_ray = None;
+
         // Zoom
         if ui.rect_contains_pointer(rect) {
             ui.ctx().input(|i| {
@@ -204,30 +164,69 @@ impl Editor {
             });
         }
 
+        if let Some(hover_pos) = response.hover_pos() {
+            let pos = hover_pos - response.rect.left_top();
+            camera_ray = Some(self.camera.screen_ray(pos.x, pos.y));
+        }
+
         let uniform = self.camera.uniform();
 
-        // Generate object verticies
-        let object_vertex_data = {
-            let mut verticies = Vec::new();
-            for entity in self.entities.iter() {
-                if let Entity::Object(object) = entity {
-                    verticies.append(&mut object.verticies());
-                }
-            }
-            self.object_verticies = verticies.len() as u32;
-            verticies
-        };
-        let object_verticies = self.object_verticies;
-
         // Generate arrow verticies
-        let arrow_vertex_data = {
+        let mut arrow_vertex_data = {
             let mut verticies = Vec::new();
             for arrow in self.arrows.iter() {
                 verticies.append(&mut arrow.verticies());
             }
+
             self.arrow_verticies = verticies.len() as u32;
             verticies
         };
+
+        // Generate object verticies
+        let object_vertex_data = {
+            let mut verticies = Vec::new();
+            for entity in self.entities.iter_mut() {
+                if let Entity::Object(ref mut object) = entity {
+                    if let Some(ref camera_ray) = camera_ray {
+                        for triangle in object.triangles.iter_mut() {
+                            if camera_ray.normal.dot(&triangle.normal) > 0.0 {
+                                continue;
+                            }
+
+                            if let Some(point) = camera_ray.triangle_intersect(
+                                &triangle.v1,
+                                &triangle.v2,
+                                &triangle.v3,
+                                &triangle.normal,
+                            ) {
+                                arrow_vertex_data.append(
+                                    &mut arrow::Arrow {
+                                        origin: point,
+                                        normal: triangle.normal,
+                                        color: [0.4, 0.4, 1.0],
+                                        scale: 0.3,
+                                    }
+                                    .verticies(),
+                                );
+                                triangle.color = [1.0, 1.0, 0.0];
+                            } else {
+                                triangle.color = [0.7, 0.7, 0.7];
+                            }
+                        }
+                    }
+
+                    let mut ov = object.verticies();
+                    verticies.append(&mut ov);
+                }
+            }
+
+            self.object_verticies = verticies.len() as u32;
+            verticies
+        };
+
+        self.arrow_verticies = arrow_vertex_data.len() as u32;
+
+        let object_verticies = self.object_verticies;
         let arrow_verticies = self.arrow_verticies;
 
         let cb = egui_wgpu::CallbackFn::new()
