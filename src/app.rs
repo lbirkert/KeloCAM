@@ -6,7 +6,7 @@ use std::pin::Pin;
 use std::task::Poll;
 
 use crate::{
-    editor::{self, arrow::Arrow, object::Object, Editor},
+    editor::{self, object::Object, Editor},
     view::{monitor::MonitorView, prepare::PrepareView, View},
 };
 
@@ -52,15 +52,6 @@ impl eframe::App for KeloApp {
                             handle.read().await,
                             &mut self.editor.id_counter,
                         ) {
-                            for triangle in object.triangles.iter() {
-                                self.editor.arrows.push(Arrow {
-                                    color: [1.0, 0.0, 0.0],
-                                    normal: triangle.normal,
-                                    origin: (triangle.v1 + triangle.v2 + triangle.v3)
-                                        .scale(1.0 / 3.0),
-                                    scale: 0.1,
-                                });
-                            }
                             self.editor.entities.push(editor::Entity::Object(object));
                             self.editor.object_changed = true;
                         }
