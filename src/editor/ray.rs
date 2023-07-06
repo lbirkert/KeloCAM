@@ -24,7 +24,7 @@ impl Ray {
             return None;
         }
 
-        let t = (plane_origin - self.origin).dot(&plane_normal) / a;
+        let t = (plane_origin - self.origin).dot(plane_normal) / a;
 
         // Plane is behind ray
         if t < 0.0 {
@@ -42,13 +42,7 @@ impl Ray {
         c: &Vector3<f32>,
         triangle_normal: &Vector3<f32>,
     ) -> Option<Vector3<f32>> {
-        let p = self.plane_intersect(a, triangle_normal);
-
-        if p.is_none() {
-            return None;
-        }
-
-        let p = p.unwrap();
+        let p = self.plane_intersect(a, triangle_normal)?;
 
         let n = (b - a).cross(&(c - a));
         let nl = n.magnitude_squared();
@@ -60,12 +54,9 @@ impl Ray {
         let beta = n.dot(&n_b) / nl;
         let gamma = n.dot(&n_c) / nl;
 
-        if alpha >= 0.0
-            && alpha <= 1.0
-            && beta >= 0.0
-            && beta <= 1.0
-            && gamma >= 0.0
-            && gamma <= 1.0
+        if (0.0..=1.0).contains(&alpha)
+            && (0.0..=1.0).contains(&beta)
+            && (0.0..=1.0).contains(&gamma)
         {
             Some(p)
         } else {
