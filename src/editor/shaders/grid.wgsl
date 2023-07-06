@@ -1,12 +1,13 @@
 struct VertexOut {
     @builtin(position) pos: vec4<f32>,
     @location(1) vpos: vec2<f32>,
+    @location(2) light: f32,
 };
 
 struct Camera {
     view_proj: mat4x4<f32>,
     // x, y, z, zoom
-    view_pos: vec4<f32>,
+    pos: vec4<f32>,
 };
 
 @group(0) @binding(0)
@@ -33,6 +34,11 @@ fn vs_main(@builtin(vertex_index) v_idx: u32) -> VertexOut {
     out.pos = world_pos * camera.view_proj;
     out.vpos = grid_pos;
 
+    let normal = vec3<f32>(0.0, 1.0, 0.0);
+    let view_normal = normalize(camera.pos.xyz - world_pos.xyz);
+
+    out.light = dot(normal, view_normal);
+
     return out;
 }
 
@@ -41,8 +47,11 @@ fn logn(a: f32, x: f32) -> f32 {
 }
 
 @fragment
-fn fs_main(@location(1) vpos: vec2<f32>) -> @location(0) vec4<f32> {
-    let zoom = camera.view_pos.w;
+fn fs_main(@location(1) vpos: vec2<f32>, @location(2) light: f32) -> @location(0) vec4<f32> {
+    var zoom = camera.pos.w;
+    if light < 0.0 {
+        zoom = 0.0;
+    }
 
     var color = grid(vpos) * 0.6;
 
