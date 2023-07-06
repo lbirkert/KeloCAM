@@ -189,7 +189,7 @@ impl Editor {
                 if let Entity::Object(ref mut object) = entity {
                     if let Some(ref camera_ray) = camera_ray {
                         for triangle in object.triangles.iter_mut() {
-                            if camera_ray.normal.dot(&triangle.normal) > 0.0 {
+                            if (camera_ray.origin - triangle.v1).dot(&triangle.normal) < 0.0 {
                                 continue;
                             }
 

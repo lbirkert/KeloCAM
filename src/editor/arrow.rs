@@ -13,7 +13,7 @@ impl Arrow {
     #[rustfmt::skip]
     pub fn verticies(&self) -> Vec<Vertex> {
         let normal = self.normal.normalize();
-        let a = normal.cross(&normal.zyx()).normalize();
+        let a = normal.cross(&normal.zxy()).normalize();
         let b = normal.cross(&a);
 
         let a = a.scale(self.scale / 2.0);
