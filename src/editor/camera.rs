@@ -9,6 +9,8 @@ use eframe::wgpu;
 
 use eframe::wgpu::util::DeviceExt;
 
+use super::ray::Ray;
+
 // We have got 2 seperate structs for the Camera to seperate
 // the actual state of the camera which will sit in the frontend
 // and the wgpu state required to perform paint calls.
@@ -106,7 +108,7 @@ impl Camera {
         )
     }
 
-    fn eye(&self) -> Vector3<f32> {
+    pub fn eye(&self) -> Vector3<f32> {
         Matrix4::from_euler_angles(self.pitch, self.yaw, 0.0)
             .transform_vector(&Vector3::new(0.0, 0.0, 1.0))
             / self.zoom
@@ -128,8 +130,12 @@ impl Camera {
     pub fn screen_ray_normal(&self, x: f32, y: f32) -> Vector3<f32> {
         let x = (2.0 * x - self.width) / self.height;
         let y = (2.0 * y - self.height) / self.height;
-        Matrix4::from_euler_angles(self.pitch, self.yaw, 0.0)
+        -Matrix4::from_euler_angles(self.pitch, self.yaw, 0.0)
             .transform_vector(&Vector3::new(x, y, 1.0 / (self.fovy / 2.0).tan()).normalize())
+    }
+
+    pub fn screen_ray(&self, x: f32, y: f32) -> Ray {
+        Ray::new(self.eye().xzy(), self.screen_ray_normal(x, y).xzy())
     }
 }
 
