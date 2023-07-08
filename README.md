@@ -20,4 +20,4 @@
 3. Support many different CNCs.
 4. Preview Toolpath before executing.
 5. Monitor the CNC process.
-6. Provide tools for easy setup for the CNC process.
+6. Provide tools for easy setup of the CNC process.
