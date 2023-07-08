@@ -45,27 +45,24 @@ pub struct Triangle {
     pub v1: Vector3<f32>,
     pub v2: Vector3<f32>,
     pub v3: Vector3<f32>,
-
-    // Temporary
-    pub color: [f32; 3],
 }
 
 impl Triangle {
-    pub fn append_verticies(&self, verticies: &mut Vec<Vertex>) {
+    pub fn append_verticies(&self, verticies: &mut Vec<Vertex>, color: [f32; 3]) {
         verticies.push(Vertex {
             pos: self.v1.into(),
             normal: self.normal.into(),
-            color: self.color,
+            color,
         });
         verticies.push(Vertex {
             pos: self.v2.into(),
             normal: self.normal.into(),
-            color: self.color,
+            color,
         });
         verticies.push(Vertex {
             pos: self.v3.into(),
             normal: self.normal.into(),
-            color: self.color,
+            color,
         });
     }
 }
@@ -93,10 +90,9 @@ impl Object {
                         v1: Vector3::from_data(ArrayStorage([t.v1])),
                         v2: Vector3::from_data(ArrayStorage([t.v2])),
                         v3: Vector3::from_data(ArrayStorage([t.v3])),
-                        color: [0.7, 0.7, 0.7],
                     })
                     .collect(),
-                color: [1.0, 0.0, 0.0],
+                color: [0.7, 0.7, 0.7],
                 id: *id_counter,
                 name,
             };
@@ -122,7 +118,7 @@ impl Object {
             Vec::with_capacity(std::mem::size_of::<Vertex>() * self.triangles.len() * 3);
 
         for triangle in &self.triangles {
-            triangle.append_verticies(&mut verticies);
+            triangle.append_verticies(&mut verticies, self.color);
         }
 
         verticies
@@ -217,7 +213,12 @@ impl Object {
                 if !ui.input(|i| i.modifiers.contains(egui::Modifiers::SHIFT)) {
                     state.selected.clear();
                 }
-                state.selected.insert(self.id);
+
+                if state.selected.contains(&self.id) {
+                    state.selected.remove(&self.id);
+                } else {
+                    state.selected.insert(self.id);
+                }
             }
 
             response.context_menu(|ui| {

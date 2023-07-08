@@ -112,7 +112,7 @@ impl Editor {
         self.entities.remove(index);
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui) {
+    pub fn ui(&mut self, ui: &mut egui::Ui, state: &mut state::State) {
         let available_size = ui.available_size();
 
         self.camera.resize(available_size.x, available_size.y);
@@ -143,8 +143,6 @@ impl Editor {
             self.camera.position += delta;
         }
 
-        let mut camera_ray = None;
-
         // Zoom
         if ui.rect_contains_pointer(rect) {
             ui.ctx().input(|i| {
@@ -164,15 +162,56 @@ impl Editor {
             });
         }
 
-        if let Some(hover_pos) = response.hover_pos() {
-            let pos = hover_pos - response.rect.left_top();
-            camera_ray = Some(self.camera.screen_ray(pos.x, pos.y));
+        if response.clicked() {
+            let pos = response.interact_pointer_pos().unwrap() - response.rect.left_top();
+            let camera_ray = self.camera.screen_ray(pos.x, pos.y);
+
+            // Find the closest intersection point
+            let mut intersection_id = 0;
+            let mut intersection_dist = std::f32::MAX;
+
+            for entity in self.entities.iter() {
+                if let Entity::Object(object) = entity {
+                    for triangle in object.triangles.iter() {
+                        if (camera_ray.origin - triangle.v1).dot(&triangle.normal) < 0.0 {
+                            continue;
+                        }
+
+                        if let Some(point) = camera_ray.triangle_intersect(
+                            &triangle.v1,
+                            &triangle.v2,
+                            &triangle.v3,
+                            &triangle.normal,
+                        ) {
+                            // It is not important to calculate the exact distance as we only want
+                            // to compare the distance with other intersection points
+                            let dist = (camera_ray.origin - point).magnitude_squared();
+                            if dist < intersection_dist {
+                                intersection_dist = dist;
+                                intersection_id = object.id;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if intersection_id != 0 {
+                if !ui.input(|i| i.modifiers.contains(egui::Modifiers::SHIFT)) {
+                    state.selected.clear();
+                }
+
+                if state.selected.contains(&intersection_id) {
+                    state.selected.remove(&intersection_id);
+                } else {
+                    state.selected.insert(intersection_id);
+                }
+            }
         }
 
         let uniform = self.camera.uniform();
 
         // Generate arrow verticies
-        let mut arrow_vertex_data = {
+        let arrow_vertex_data = {
             let mut verticies = Vec::new();
             for arrow in self.arrows.iter() {
                 verticies.append(&mut arrow.verticies());
@@ -187,36 +226,12 @@ impl Editor {
             let mut verticies = Vec::new();
             for entity in self.entities.iter_mut() {
                 if let Entity::Object(ref mut object) = entity {
-                    if let Some(ref camera_ray) = camera_ray {
-                        for triangle in object.triangles.iter_mut() {
-                            if (camera_ray.origin - triangle.v1).dot(&triangle.normal) < 0.0 {
-                                continue;
-                            }
-
-                            if let Some(point) = camera_ray.triangle_intersect(
-                                &triangle.v1,
-                                &triangle.v2,
-                                &triangle.v3,
-                                &triangle.normal,
-                            ) {
-                                arrow_vertex_data.append(
-                                    &mut arrow::Arrow {
-                                        origin: point,
-                                        normal: triangle.normal,
-                                        color: [0.4, 0.4, 1.0],
-                                        scale: 0.3,
-                                    }
-                                    .verticies(),
-                                );
-                                triangle.color = [1.0, 1.0, 0.0];
-                            } else {
-                                triangle.color = [0.7, 0.7, 0.7];
-                            }
-                        }
+                    if state.selected.contains(&object.id) {
+                        object.color = [1.0, 0.0, 0.0];
+                    } else {
+                        object.color = [0.7, 0.7, 0.7];
                     }
-
-                    let mut ov = object.verticies();
-                    verticies.append(&mut ov);
+                    verticies.append(&mut object.verticies());
                 }
             }
 

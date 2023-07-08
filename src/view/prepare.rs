@@ -23,6 +23,6 @@ impl PrepareView {
 
         egui::CentralPanel::default()
             .frame(egui::Frame::default())
-            .show(ctx, |ui| editor.ui(ui));
+            .show(ctx, |ui| editor.ui(ui, state));
     }
 }
