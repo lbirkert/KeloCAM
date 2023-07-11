@@ -198,9 +198,10 @@ impl Default for Camera {
     fn default() -> Self {
         Self {
             position: Vector3::new(0.0, 0.0, 0.0),
-            pitch: 0.0,
-            yaw: 0.0,
-            zoom: 0.1,
+            yaw: std::f32::consts::FRAC_PI_4,
+            pitch: -std::f32::consts::FRAC_PI_6,
+
+            zoom: 0.02,
             height: 400.0,
             width: 400.0,
 
@@ -208,7 +209,7 @@ impl Default for Camera {
                 aspect: 1.0,
                 fovy: std::f32::consts::FRAC_PI_4,
                 znear: 0.01,
-                zfar: 100.0,
+                zfar: 300.0,
             },
             /*
             projection: Projection::Orthographic {
