@@ -6,7 +6,7 @@ use std::pin::Pin;
 use std::task::Poll;
 
 use crate::{
-    editor::{self, object::Object, Editor},
+    editor::{object::Object, Editor},
     view::{monitor::MonitorView, prepare::PrepareView, View},
 };
 
@@ -52,7 +52,7 @@ impl eframe::App for KeloApp {
                             handle.read().await,
                             &mut self.editor.id_counter,
                         ) {
-                            self.editor.entities.push(editor::Entity::Object(object));
+                            self.editor.objects.push(object);
                             self.editor.object_changed = true;
                         }
                     }

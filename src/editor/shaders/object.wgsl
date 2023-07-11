@@ -29,7 +29,7 @@ fn vs_main(in: VertexIn) -> VertexOut {
     let normal = in.normal.xzy;
     let view_normal = normalize(camera.pos.xyz - world_pos.xyz);
 
-    let light = dot(normal, view_normal) * 0.4 + 0.6;
+    let light = pow(dot(normal, view_normal), 2.2) * 0.4 + 0.6;
     out.color = in.color * light;
 
     return out;

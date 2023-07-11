@@ -4,12 +4,20 @@ use crate::icon;
 
 use super::Editor;
 
+pub enum Tool {
+    Move,
+    Rotate,
+    Scale,
+}
+
 pub struct State {
     pub selected: HashSet<u32>,
 
     pub group_icon: egui::TextureHandle,
     pub object_icon: egui::TextureHandle,
     pub toolpath_icon: egui::TextureHandle,
+
+    pub tool: Tool,
 }
 
 impl State {
@@ -24,42 +32,20 @@ impl State {
             group_icon,
             object_icon,
             toolpath_icon,
+            tool: Tool::Move,
         }
     }
 }
 
 pub enum Message {
     Delete(u32),
-    Group(),
-    Ungroup(),
 }
 
 impl Message {
-    pub fn process(&self, editor: &mut Editor, state: &mut State) {
+    pub fn process(&self, editor: &mut Editor, _state: &mut State) {
         match self {
             Self::Delete(id) => {
                 editor.remove(*id);
-            }
-            Self::Group() => {
-                let group_id = editor.uid();
-                for entity in editor.entities.iter_mut() {
-                    if state.selected.contains(&entity.id()) {
-                        entity.set_id(group_id);
-                    }
-                }
-            }
-            Self::Ungroup() => {
-                // Create temp value because we cannot mutate id_counter while having editor
-                // borrowed via iter_mut()
-                let mut id_counter = editor.id_counter;
-                for entity in editor.entities.iter_mut() {
-                    if state.selected.contains(&entity.id()) {
-                        id_counter += 1;
-                        entity.set_id(id_counter);
-                    }
-                }
-
-                editor.id_counter = id_counter;
             }
         }
     }

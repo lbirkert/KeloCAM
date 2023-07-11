@@ -1,9 +1,9 @@
 use eframe::{egui, egui_wgpu, wgpu};
 use nalgebra::{Matrix4, Vector3};
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
-pub mod arrow;
 pub mod object;
+pub mod tool;
 pub mod toolpath;
 
 pub mod ray;
@@ -53,15 +53,11 @@ const SAFE_FRAC_PI_2: f32 = std::f32::consts::FRAC_PI_2 - 0.0001;
 pub struct Editor {
     camera: camera::Camera,
 
-    pub entities: Vec<Entity>,
     pub id_counter: u32,
 
+    pub objects: Vec<object::Object>,
     pub object_changed: bool,
     pub object_verticies: u32,
-
-    pub arrows: Vec<arrow::Arrow>,
-    pub arrow_changed: bool,
-    pub arrow_verticies: u32,
 }
 
 impl Editor {
@@ -84,7 +80,7 @@ impl Editor {
             &camera_uniform.bind_group_layout,
         );
 
-        let arrow_renderer = arrow::Renderer::new(
+        let arrow_renderer = tool::Renderer::new(
             device,
             wgpu_render_state.target_format,
             &camera_uniform.bind_group_layout,
@@ -108,8 +104,21 @@ impl Editor {
     }
 
     pub fn remove(&mut self, id: u32) {
-        let index = self.entities.iter().position(|x| x.id() == id).unwrap();
-        self.entities.remove(index);
+        let index = self.objects.iter().position(|x| x.id == id).unwrap();
+        self.objects.remove(index);
+    }
+
+    pub fn inf_sup(&self, objects: &HashSet<u32>) -> (Vector3<f32>, Vector3<f32>) {
+        let mut inf = Vector3::from_element(std::f32::INFINITY);
+        let mut sup = Vector3::from_element(std::f32::NEG_INFINITY);
+        for object in self.objects.iter().filter(|o| objects.contains(&o.id)) {
+            let (oinf, osup) = object.inf_sup();
+
+            inf = inf.inf(&oinf);
+            sup = sup.sup(&osup);
+        }
+
+        (inf, sup)
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui, state: &mut state::State) {
@@ -170,26 +179,24 @@ impl Editor {
             let mut intersection_id = 0;
             let mut intersection_dist = std::f32::MAX;
 
-            for entity in self.entities.iter() {
-                if let Entity::Object(object) = entity {
-                    for triangle in object.triangles.iter() {
-                        if (camera_ray.origin - triangle.v1).dot(&triangle.normal) < 0.0 {
-                            continue;
-                        }
+            for object in self.objects.iter() {
+                for triangle in object.triangles.iter() {
+                    if (camera_ray.origin - triangle.v1).dot(&triangle.normal) < 0.0 {
+                        continue;
+                    }
 
-                        if let Some(point) = camera_ray.triangle_intersect(
-                            &triangle.v1,
-                            &triangle.v2,
-                            &triangle.v3,
-                            &triangle.normal,
-                        ) {
-                            // It is not important to calculate the exact distance as we only want
-                            // to compare the distance with other intersection points
-                            let dist = (camera_ray.origin - point).magnitude_squared();
-                            if dist < intersection_dist {
-                                intersection_dist = dist;
-                                intersection_id = object.id;
-                            }
+                    if let Some(point) = camera_ray.triangle_intersect(
+                        &triangle.v1,
+                        &triangle.v2,
+                        &triangle.v3,
+                        &triangle.normal,
+                    ) {
+                        // It is not important to calculate the exact distance as we only want
+                        // to compare the distance with other intersection points
+                        let dist = (camera_ray.origin - point).magnitude_squared();
+                        if dist < intersection_dist {
+                            intersection_dist = dist;
+                            intersection_id = object.id;
                         }
                     }
                 }
@@ -211,38 +218,37 @@ impl Editor {
         let uniform = self.camera.uniform();
 
         // Generate arrow verticies
-        let arrow_vertex_data = {
+        let (arrow_verticies, arrow_vertex_data) = {
             let mut verticies = Vec::new();
-            for arrow in self.arrows.iter() {
-                verticies.append(&mut arrow.verticies());
+
+            if !state.selected.is_empty() {
+                let (inf, sup) = self.inf_sup(&state.selected);
+                let origin = (sup - inf).scale(0.5) + inf;
+
+                verticies
+                    .append(&mut tool::Tool::Move { origin }.verticies(0.02 / self.camera.zoom));
             }
 
-            self.arrow_verticies = verticies.len() as u32;
-            verticies
+            (verticies.len() as u32, verticies)
         };
 
         // Generate object verticies
         let object_vertex_data = {
             let mut verticies = Vec::new();
-            for entity in self.entities.iter_mut() {
-                if let Entity::Object(ref mut object) = entity {
-                    if state.selected.contains(&object.id) {
-                        object.color = [1.0, 0.0, 0.0];
-                    } else {
-                        object.color = [0.7, 0.7, 0.7];
-                    }
-                    verticies.append(&mut object.verticies());
+            for object in self.objects.iter_mut() {
+                if state.selected.contains(&object.id) {
+                    object.color = [1.0, 1.0, 0.0];
+                } else {
+                    object.color = [0.7, 0.7, 0.7];
                 }
+                verticies.append(&mut object.verticies());
             }
 
             self.object_verticies = verticies.len() as u32;
             verticies
         };
 
-        self.arrow_verticies = arrow_vertex_data.len() as u32;
-
         let object_verticies = self.object_verticies;
-        let arrow_verticies = self.arrow_verticies;
 
         let cb = egui_wgpu::CallbackFn::new()
             .prepare(move |_device, queue, _encoder, paint_callback_resources| {
@@ -281,8 +287,8 @@ impl Editor {
 
     pub fn sidebar(&mut self, state: &mut state::State, ui: &mut egui::Ui) {
         let mut messages = Vec::new();
-        for entity in self.entities.iter_mut() {
-            entity.ui(ui, state, &mut messages);
+        for object in self.objects.iter_mut() {
+            object.ui(ui, state, &mut messages);
         }
 
         for message in messages.iter() {
@@ -300,7 +306,7 @@ pub struct Renderer {
     camera_uniform: camera::Uniform,
     grid_renderer: grid::Renderer,
     object_renderer: object::Renderer,
-    arrow_renderer: arrow::Renderer,
+    arrow_renderer: tool::Renderer,
 }
 
 impl Renderer {

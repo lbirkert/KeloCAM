@@ -204,19 +204,19 @@ impl Default for Camera {
             height: 400.0,
             width: 400.0,
 
-            /*
             projection: Projection::Perspective {
                 aspect: 1.0,
                 fovy: std::f32::consts::FRAC_PI_4,
                 znear: 0.01,
                 zfar: 100.0,
             },
-            */
+            /*
             projection: Projection::Orthographic {
                 aspect: 1.0,
                 znear: 0.01,
                 zfar: 100.0,
             },
+            */
         }
     }
 }
