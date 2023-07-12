@@ -1,6 +1,21 @@
 use eframe::wgpu;
-use nalgebra::{UnitVector3, Vector3};
+use nalgebra::Vector3;
 use std::sync::Arc;
+
+use super::ray::Ray;
+
+#[derive(Debug)]
+pub enum Axis {
+    X,
+    Y,
+    Z,
+}
+
+#[derive(Debug)]
+pub enum Action {
+    Transform { axis: Axis },
+    Hover { axis: Axis },
+}
 
 pub enum Tool {
     Move { origin: Vector3<f32> },
@@ -9,11 +24,11 @@ pub enum Tool {
 }
 
 impl Tool {
-    pub fn verticies(&self, scale: f32) -> Vec<Vertex> {
+    pub fn verticies(&self, scale: f32, action: &Option<Action>) -> Vec<Vertex> {
         match self {
             Tool::Move { origin } => {
                 let mut verticies = Vec::new();
-                Self::move_tool(&mut verticies, origin, scale);
+                Self::move_tool(&mut verticies, origin, scale, action);
                 verticies
             }
             _ => panic!(),
@@ -21,7 +36,7 @@ impl Tool {
     }
 
     #[rustfmt::skip]
-    fn triangle(
+    pub fn triangle(
         verticies: &mut Vec<Vertex>,
         offset: &Vector3<f32>,
         scale: f32,
@@ -36,7 +51,12 @@ impl Tool {
     }
 
     #[rustfmt::skip]
-    fn arrow(verticies: &mut Vec<Vertex>, offset: &Vector3<f32>, normal: UnitVector3<f32>, scale: f32, color: [f32; 3]) {
+    pub fn arrow(
+        verticies: &mut Vec<Vertex>,
+        offset: &Vector3<f32>,
+        normal: &Vector3<f32>,
+        scale: f32, color: [f32; 3]
+    ) {
         let a = normal.cross(&normal.zxy()).normalize();
         let b = normal.cross(&a);
         let c = normal.scale(2.0);
@@ -49,27 +69,78 @@ impl Tool {
         Self::triangle(verticies, offset, scale / 2.0, -b, a, c, color);
     }
 
+    // TODO: rework this
     #[rustfmt::skip]
-    fn move_tool(verticies: &mut Vec<Vertex>, offset: &Vector3<f32>, scale: f32) {
+    fn move_tool(verticies: &mut Vec<Vertex>, offset: &Vector3<f32>, scale: f32, action: &Option<Action>) {
+        let mut xcolor = [1.0, 0.0, 0.0];
+        let mut ycolor = [0.0, 1.0, 0.0];
+        let mut zcolor = [0.0, 0.0, 1.0];
+
+            if let Some(Action::Hover { axis }) = action {
+                match axis {
+                    Axis::X => xcolor = [1.0, 0.7, 0.7],
+                    Axis::Y => ycolor = [0.7, 1.0, 0.7],
+                    Axis::Z => zcolor = [0.7, 0.7, 1.0],
+                }
+            }
+
         // X axis
-        Self::triangle(verticies, offset, scale, Vector3::new(0.0, -0.1,  0.0), Vector3::new(5.0, -0.1,  0.0), Vector3::new(5.0, 0.1, 0.0), [1.0, 0.0, 0.0]);
-        Self::triangle(verticies, offset, scale, Vector3::new(0.0, -0.1,  0.0), Vector3::new(5.0,  0.1,  0.0), Vector3::new(0.0, 0.1, 0.0), [1.0, 0.0, 0.0]);
-        Self::triangle(verticies, offset, scale, Vector3::new(0.0,  0.0, -0.1), Vector3::new(5.0,  0.0, -0.1), Vector3::new(5.0, 0.0, 0.1), [1.0, 0.0, 0.0]);
-        Self::triangle(verticies, offset, scale, Vector3::new(0.0,  0.0, -0.1), Vector3::new(5.0,  0.0,  0.1), Vector3::new(0.0, 0.0, 0.1), [1.0, 0.0, 0.0]);
+        Self::triangle(verticies, offset, scale, Vector3::new(0.0, -0.1,  0.0), Vector3::new(5.0, -0.1,  0.0), Vector3::new(5.0, 0.1, 0.0), xcolor);
+        Self::triangle(verticies, offset, scale, Vector3::new(0.0, -0.1,  0.0), Vector3::new(5.0,  0.1,  0.0), Vector3::new(0.0, 0.1, 0.0), xcolor);
+        Self::triangle(verticies, offset, scale, Vector3::new(0.0,  0.0, -0.1), Vector3::new(5.0,  0.0, -0.1), Vector3::new(5.0, 0.0, 0.1), xcolor);
+        Self::triangle(verticies, offset, scale, Vector3::new(0.0,  0.0, -0.1), Vector3::new(5.0,  0.0,  0.1), Vector3::new(0.0, 0.0, 0.1), xcolor);
         // Y axis                         
-        Self::triangle(verticies, offset, scale, Vector3::new(-0.1, 0.0,  0.0), Vector3::new(-0.1, 5.0,  0.0), Vector3::new(0.1, 5.0, 0.0), [0.0, 1.0, 0.0]);
-        Self::triangle(verticies, offset, scale, Vector3::new(-0.1, 0.0,  0.0), Vector3::new( 0.1, 5.0,  0.0), Vector3::new(0.1, 0.0, 0.0), [0.0, 1.0, 0.0]);
-        Self::triangle(verticies, offset, scale, Vector3::new( 0.0, 0.0, -0.1), Vector3::new( 0.0, 5.0, -0.1), Vector3::new(0.0, 5.0, 0.1), [0.0, 1.0, 0.0]);
-        Self::triangle(verticies, offset, scale, Vector3::new( 0.0, 0.0, -0.1), Vector3::new( 0.0, 5.0,  0.1), Vector3::new(0.0, 0.0, 0.1), [0.0, 1.0, 0.0]);
+        Self::triangle(verticies, offset, scale, Vector3::new(-0.1, 0.0,  0.0), Vector3::new(-0.1, 5.0,  0.0), Vector3::new(0.1, 5.0, 0.0), ycolor);
+        Self::triangle(verticies, offset, scale, Vector3::new(-0.1, 0.0,  0.0), Vector3::new( 0.1, 5.0,  0.0), Vector3::new(0.1, 0.0, 0.0), ycolor);
+        Self::triangle(verticies, offset, scale, Vector3::new( 0.0, 0.0, -0.1), Vector3::new( 0.0, 5.0, -0.1), Vector3::new(0.0, 5.0, 0.1), ycolor);
+        Self::triangle(verticies, offset, scale, Vector3::new( 0.0, 0.0, -0.1), Vector3::new( 0.0, 5.0,  0.1), Vector3::new(0.0, 0.0, 0.1), ycolor);
         // Z axis                         
-        Self::triangle(verticies, offset, scale, Vector3::new(-0.1,  0.0, 0.0), Vector3::new(-0.1,  0.0, 5.0), Vector3::new(0.1, 0.0, 5.0), [0.0, 0.0, 1.0]);
-        Self::triangle(verticies, offset, scale, Vector3::new(-0.1,  0.0, 0.0), Vector3::new( 0.1,  0.0, 5.0), Vector3::new(0.1, 0.0, 0.0), [0.0, 0.0, 1.0]);
-        Self::triangle(verticies, offset, scale, Vector3::new( 0.0, -0.1, 0.0), Vector3::new( 0.0, -0.1, 5.0), Vector3::new(0.0, 0.1, 5.0), [0.0, 0.0, 1.0]);
-        Self::triangle(verticies, offset, scale, Vector3::new( 0.0, -0.1, 0.0), Vector3::new( 0.0,  0.1, 5.0), Vector3::new(0.0, 0.1, 0.0), [0.0, 0.0, 1.0]);
+        Self::triangle(verticies, offset, scale, Vector3::new(-0.1,  0.0, 0.0), Vector3::new(-0.1,  0.0, 5.0), Vector3::new(0.1, 0.0, 5.0), zcolor);
+        Self::triangle(verticies, offset, scale, Vector3::new(-0.1,  0.0, 0.0), Vector3::new( 0.1,  0.0, 5.0), Vector3::new(0.1, 0.0, 0.0), zcolor);
+        Self::triangle(verticies, offset, scale, Vector3::new( 0.0, -0.1, 0.0), Vector3::new( 0.0, -0.1, 5.0), Vector3::new(0.0, 0.1, 5.0), zcolor);
+        Self::triangle(verticies, offset, scale, Vector3::new( 0.0, -0.1, 0.0), Vector3::new( 0.0,  0.1, 5.0), Vector3::new(0.0, 0.1, 0.0), zcolor);
         // Arrows added at last so they get drawn over everything else
-        Self::arrow(verticies, &(offset + Vector3::new(scale * 5.0, 0.0, 0.0)), Vector3::x_axis(), 0.5 * scale, [1.0, 0.0, 0.0]);
-        Self::arrow(verticies, &(offset + Vector3::new(0.0, scale * 5.0, 0.0)), Vector3::y_axis(), 0.5 * scale, [0.0, 1.0, 0.0]);
-        Self::arrow(verticies, &(offset + Vector3::new(0.0, 0.0, scale * 5.0)), Vector3::z_axis(), 0.5 * scale, [0.0, 0.0, 1.0]);
+        Self::arrow(verticies, &(offset + Vector3::new(scale * 5.0, 0.0, 0.0)), &Vector3::new(1.0, 0.0, 0.0), 0.5 * scale, xcolor);
+        Self::arrow(verticies, &(offset + Vector3::new(0.0, scale * 5.0, 0.0)), &Vector3::new(0.0, 1.0, 0.0), 0.5 * scale, ycolor);
+        Self::arrow(verticies, &(offset + Vector3::new(0.0, 0.0, scale * 5.0)), &Vector3::new(0.0, 0.0, 1.0), 0.5 * scale, zcolor);
+    }
+
+    pub fn msaxis(origin: &Vector3<f32>, camera_ray: &Ray, scale: f32) -> Option<Axis> {
+        Self::intersect_axis(origin, camera_ray, scale, &Vector3::x_axis()).map_or_else(
+            || {
+                Self::intersect_axis(origin, camera_ray, scale, &Vector3::y_axis()).map_or_else(
+                    || {
+                        Self::intersect_axis(origin, camera_ray, scale, &Vector3::z_axis())
+                            .map(|_| Axis::Z)
+                    },
+                    |_| Some(Axis::Y),
+                )
+            },
+            |_| Some(Axis::X),
+        )
+    }
+
+    fn intersect_axis(
+        origin: &Vector3<f32>,
+        camera_ray: &Ray,
+        scale: f32,
+        axis: &Vector3<f32>,
+    ) -> Option<Vector3<f32>> {
+        let eye_normal = camera_ray.origin - origin;
+        let ortho = eye_normal.cross(axis).normalize().scale(scale);
+        camera_ray.square_intersect(
+            &(origin - ortho.scale(0.5)),
+            &ortho,
+            &axis.scale(scale * 6.0),
+        )
+    }
+
+    pub fn intersect(&self, camera_ray: &Ray, scale: f32) -> Option<Axis> {
+        match self {
+            Tool::Move { origin } => Self::msaxis(origin, camera_ray, scale),
+            Tool::Scale { origin } => Self::msaxis(origin, camera_ray, scale),
+            _ => panic!(),
+        }
     }
 }
 

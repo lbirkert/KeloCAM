@@ -63,4 +63,23 @@ impl Ray {
             None
         }
     }
+
+    pub fn square_intersect(
+        &self,
+        a: &Vector3<f32>,
+        ab: &Vector3<f32>,
+        ac: &Vector3<f32>,
+    ) -> Option<Vector3<f32>> {
+        let p = self.plane_intersect(a, &ab.cross(ac).normalize())?;
+
+        let ap = p - a;
+
+        if (0.0..=ab.magnitude_squared()).contains(&ap.dot(ab))
+            && (0.0..=ac.magnitude_squared()).contains(&ap.dot(ac))
+        {
+            Some(p)
+        } else {
+            None
+        }
+    }
 }

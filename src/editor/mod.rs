@@ -217,19 +217,37 @@ impl Editor {
 
         let uniform = self.camera.uniform();
 
+        let mut action = None;
+        if let Some(hover_pos) = response.hover_pos() {
+            if !state.selected.is_empty() {
+                let pos = hover_pos - response.rect.left_top();
+                let camera_ray = self.camera.screen_ray(pos.x, pos.y);
+
+                let (inf, sup) = self.inf_sup(&state.selected);
+                let origin = (sup - inf).scale(0.5) + inf;
+
+                if let Some(axis) =
+                    (tool::Tool::Move { origin }.intersect(&camera_ray, 0.02 / self.camera.zoom))
+                {
+                    action = Some(tool::Action::Hover { axis });
+                }
+            }
+        }
+
         // Generate arrow verticies
-        let (arrow_verticies, arrow_vertex_data) = {
+        let arrow_vertex_data = {
             let mut verticies = Vec::new();
 
             if !state.selected.is_empty() {
                 let (inf, sup) = self.inf_sup(&state.selected);
                 let origin = (sup - inf).scale(0.5) + inf;
 
-                verticies
-                    .append(&mut tool::Tool::Move { origin }.verticies(0.02 / self.camera.zoom));
+                verticies.append(
+                    &mut tool::Tool::Move { origin }.verticies(0.02 / self.camera.zoom, &action),
+                );
             }
 
-            (verticies.len() as u32, verticies)
+            verticies
         };
 
         // Generate object verticies
@@ -249,6 +267,7 @@ impl Editor {
         };
 
         let object_verticies = self.object_verticies;
+        let arrow_verticies = arrow_vertex_data.len() as u32;
 
         let cb = egui_wgpu::CallbackFn::new()
             .prepare(move |_device, queue, _encoder, paint_callback_resources| {
