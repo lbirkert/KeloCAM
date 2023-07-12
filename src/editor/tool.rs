@@ -1,5 +1,5 @@
 use eframe::wgpu;
-use nalgebra::Vector3;
+use nalgebra::{Unit, Vector3};
 use std::sync::Arc;
 
 use super::ray::Ray;
@@ -11,6 +11,16 @@ pub enum Axis {
     Z,
 }
 
+impl Axis {
+    pub fn vector(&self) -> Unit<Vector3<f32>> {
+        match self {
+            Axis::X => Vector3::x_axis(),
+            Axis::Y => Vector3::y_axis(),
+            Axis::Z => Vector3::z_axis(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum Action {
     Transform { axis: Axis },
@@ -18,17 +28,22 @@ pub enum Action {
 }
 
 pub enum Tool {
-    Move { origin: Vector3<f32> },
-    Scale { origin: Vector3<f32> },
-    Rotate { origin: Vector3<f32> },
+    Move,
+    Scale,
+    Rotate,
 }
 
 impl Tool {
-    pub fn verticies(&self, scale: f32, action: &Option<Action>) -> Vec<Vertex> {
+    pub fn verticies(
+        &self,
+        offset: &Vector3<f32>,
+        scale: f32,
+        action: &Option<Action>,
+    ) -> Vec<Vertex> {
         match self {
-            Tool::Move { origin } => {
+            Tool::Move => {
                 let mut verticies = Vec::new();
-                Self::move_tool(&mut verticies, origin, scale, action);
+                Self::move_tool(&mut verticies, offset, scale, action);
                 verticies
             }
             _ => panic!(),
@@ -38,22 +53,22 @@ impl Tool {
     #[rustfmt::skip]
     pub fn triangle(
         verticies: &mut Vec<Vertex>,
-        offset: &Vector3<f32>,
+        origin: &Vector3<f32>,
         scale: f32,
         a: Vector3<f32>,
         b: Vector3<f32>,
         c: Vector3<f32>,
         color: [f32; 3],
     ) {
-        verticies.push(Vertex { pos: (offset + a.scale(scale)).into(), color });
-        verticies.push(Vertex { pos: (offset + b.scale(scale)).into(), color });
-        verticies.push(Vertex { pos: (offset + c.scale(scale)).into(), color });
+        verticies.push(Vertex { pos: (origin + a.scale(scale)).into(), color });
+        verticies.push(Vertex { pos: (origin + b.scale(scale)).into(), color });
+        verticies.push(Vertex { pos: (origin + c.scale(scale)).into(), color });
     }
 
     #[rustfmt::skip]
     pub fn arrow(
         verticies: &mut Vec<Vertex>,
-        offset: &Vector3<f32>,
+        origin: &Vector3<f32>,
         normal: &Vector3<f32>,
         scale: f32, color: [f32; 3]
     ) {
@@ -61,17 +76,17 @@ impl Tool {
         let b = normal.cross(&a);
         let c = normal.scale(2.0);
 
-        Self::triangle(verticies, offset, scale / 2.0, a, -a, -b, color);
-        Self::triangle(verticies, offset, scale / 2.0, a, b, -a, color);
-        Self::triangle(verticies, offset, scale / 2.0, a, b, c, color);
-        Self::triangle(verticies, offset, scale / 2.0, b, -a, c, color);
-        Self::triangle(verticies, offset, scale / 2.0, -a, -b, c, color);
-        Self::triangle(verticies, offset, scale / 2.0, -b, a, c, color);
+        Self::triangle(verticies, origin, scale / 2.0, a, -a, -b, color);
+        Self::triangle(verticies, origin, scale / 2.0, a, b, -a, color);
+        Self::triangle(verticies, origin, scale / 2.0, a, b, c, color);
+        Self::triangle(verticies, origin, scale / 2.0, b, -a, c, color);
+        Self::triangle(verticies, origin, scale / 2.0, -a, -b, c, color);
+        Self::triangle(verticies, origin, scale / 2.0, -b, a, c, color);
     }
 
     // TODO: rework this
     #[rustfmt::skip]
-    fn move_tool(verticies: &mut Vec<Vertex>, offset: &Vector3<f32>, scale: f32, action: &Option<Action>) {
+    fn move_tool(verticies: &mut Vec<Vertex>, origin: &Vector3<f32>, scale: f32, action: &Option<Action>) {
         let mut xcolor = [1.0, 0.0, 0.0];
         let mut ycolor = [0.0, 1.0, 0.0];
         let mut zcolor = [0.0, 0.0, 1.0];
@@ -85,24 +100,24 @@ impl Tool {
             }
 
         // X axis
-        Self::triangle(verticies, offset, scale, Vector3::new(0.0, -0.1,  0.0), Vector3::new(5.0, -0.1,  0.0), Vector3::new(5.0, 0.1, 0.0), xcolor);
-        Self::triangle(verticies, offset, scale, Vector3::new(0.0, -0.1,  0.0), Vector3::new(5.0,  0.1,  0.0), Vector3::new(0.0, 0.1, 0.0), xcolor);
-        Self::triangle(verticies, offset, scale, Vector3::new(0.0,  0.0, -0.1), Vector3::new(5.0,  0.0, -0.1), Vector3::new(5.0, 0.0, 0.1), xcolor);
-        Self::triangle(verticies, offset, scale, Vector3::new(0.0,  0.0, -0.1), Vector3::new(5.0,  0.0,  0.1), Vector3::new(0.0, 0.0, 0.1), xcolor);
+        Self::triangle(verticies, origin, scale, Vector3::new(0.0, -0.1,  0.0), Vector3::new(5.0, -0.1,  0.0), Vector3::new(5.0, 0.1, 0.0), xcolor);
+        Self::triangle(verticies, origin, scale, Vector3::new(0.0, -0.1,  0.0), Vector3::new(5.0,  0.1,  0.0), Vector3::new(0.0, 0.1, 0.0), xcolor);
+        Self::triangle(verticies, origin, scale, Vector3::new(0.0,  0.0, -0.1), Vector3::new(5.0,  0.0, -0.1), Vector3::new(5.0, 0.0, 0.1), xcolor);
+        Self::triangle(verticies, origin, scale, Vector3::new(0.0,  0.0, -0.1), Vector3::new(5.0,  0.0,  0.1), Vector3::new(0.0, 0.0, 0.1), xcolor);
         // Y axis                         
-        Self::triangle(verticies, offset, scale, Vector3::new(-0.1, 0.0,  0.0), Vector3::new(-0.1, 5.0,  0.0), Vector3::new(0.1, 5.0, 0.0), ycolor);
-        Self::triangle(verticies, offset, scale, Vector3::new(-0.1, 0.0,  0.0), Vector3::new( 0.1, 5.0,  0.0), Vector3::new(0.1, 0.0, 0.0), ycolor);
-        Self::triangle(verticies, offset, scale, Vector3::new( 0.0, 0.0, -0.1), Vector3::new( 0.0, 5.0, -0.1), Vector3::new(0.0, 5.0, 0.1), ycolor);
-        Self::triangle(verticies, offset, scale, Vector3::new( 0.0, 0.0, -0.1), Vector3::new( 0.0, 5.0,  0.1), Vector3::new(0.0, 0.0, 0.1), ycolor);
+        Self::triangle(verticies, origin, scale, Vector3::new(-0.1, 0.0,  0.0), Vector3::new(-0.1, 5.0,  0.0), Vector3::new(0.1, 5.0, 0.0), ycolor);
+        Self::triangle(verticies, origin, scale, Vector3::new(-0.1, 0.0,  0.0), Vector3::new( 0.1, 5.0,  0.0), Vector3::new(0.1, 0.0, 0.0), ycolor);
+        Self::triangle(verticies, origin, scale, Vector3::new( 0.0, 0.0, -0.1), Vector3::new( 0.0, 5.0, -0.1), Vector3::new(0.0, 5.0, 0.1), ycolor);
+        Self::triangle(verticies, origin, scale, Vector3::new( 0.0, 0.0, -0.1), Vector3::new( 0.0, 5.0,  0.1), Vector3::new(0.0, 0.0, 0.1), ycolor);
         // Z axis                         
-        Self::triangle(verticies, offset, scale, Vector3::new(-0.1,  0.0, 0.0), Vector3::new(-0.1,  0.0, 5.0), Vector3::new(0.1, 0.0, 5.0), zcolor);
-        Self::triangle(verticies, offset, scale, Vector3::new(-0.1,  0.0, 0.0), Vector3::new( 0.1,  0.0, 5.0), Vector3::new(0.1, 0.0, 0.0), zcolor);
-        Self::triangle(verticies, offset, scale, Vector3::new( 0.0, -0.1, 0.0), Vector3::new( 0.0, -0.1, 5.0), Vector3::new(0.0, 0.1, 5.0), zcolor);
-        Self::triangle(verticies, offset, scale, Vector3::new( 0.0, -0.1, 0.0), Vector3::new( 0.0,  0.1, 5.0), Vector3::new(0.0, 0.1, 0.0), zcolor);
+        Self::triangle(verticies, origin, scale, Vector3::new(-0.1,  0.0, 0.0), Vector3::new(-0.1,  0.0, 5.0), Vector3::new(0.1, 0.0, 5.0), zcolor);
+        Self::triangle(verticies, origin, scale, Vector3::new(-0.1,  0.0, 0.0), Vector3::new( 0.1,  0.0, 5.0), Vector3::new(0.1, 0.0, 0.0), zcolor);
+        Self::triangle(verticies, origin, scale, Vector3::new( 0.0, -0.1, 0.0), Vector3::new( 0.0, -0.1, 5.0), Vector3::new(0.0, 0.1, 5.0), zcolor);
+        Self::triangle(verticies, origin, scale, Vector3::new( 0.0, -0.1, 0.0), Vector3::new( 0.0,  0.1, 5.0), Vector3::new(0.0, 0.1, 0.0), zcolor);
         // Arrows added at last so they get drawn over everything else
-        Self::arrow(verticies, &(offset + Vector3::new(scale * 5.0, 0.0, 0.0)), &Vector3::new(1.0, 0.0, 0.0), 0.5 * scale, xcolor);
-        Self::arrow(verticies, &(offset + Vector3::new(0.0, scale * 5.0, 0.0)), &Vector3::new(0.0, 1.0, 0.0), 0.5 * scale, ycolor);
-        Self::arrow(verticies, &(offset + Vector3::new(0.0, 0.0, scale * 5.0)), &Vector3::new(0.0, 0.0, 1.0), 0.5 * scale, zcolor);
+        Self::arrow(verticies, &(origin + Vector3::new(scale * 5.0, 0.0, 0.0)), &Vector3::new(1.0, 0.0, 0.0), 0.5 * scale, xcolor);
+        Self::arrow(verticies, &(origin + Vector3::new(0.0, scale * 5.0, 0.0)), &Vector3::new(0.0, 1.0, 0.0), 0.5 * scale, ycolor);
+        Self::arrow(verticies, &(origin + Vector3::new(0.0, 0.0, scale * 5.0)), &Vector3::new(0.0, 0.0, 1.0), 0.5 * scale, zcolor);
     }
 
     pub fn msaxis(origin: &Vector3<f32>, camera_ray: &Ray, scale: f32) -> Option<Axis> {
@@ -135,10 +150,10 @@ impl Tool {
         )
     }
 
-    pub fn intersect(&self, camera_ray: &Ray, scale: f32) -> Option<Axis> {
+    pub fn intersect(&self, origin: &Vector3<f32>, camera_ray: &Ray, scale: f32) -> Option<Axis> {
         match self {
-            Tool::Move { origin } => Self::msaxis(origin, camera_ray, scale),
-            Tool::Scale { origin } => Self::msaxis(origin, camera_ray, scale),
+            Tool::Move => Self::msaxis(origin, camera_ray, scale),
+            Tool::Scale => Self::msaxis(origin, camera_ray, scale),
             _ => panic!(),
         }
     }

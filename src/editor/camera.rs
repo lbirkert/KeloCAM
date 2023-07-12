@@ -192,6 +192,52 @@ impl Camera {
 
         Ray::new(pos.xzy(), normal.xzy())
     }
+
+    pub fn handle(&mut self, ui: &mut egui::Ui, rect: egui::Rect, response: &egui::Response) {
+        self.resize(rect.size().x, rect.size().y);
+
+        const SAFE_FRAC_PI_2: f32 = std::f32::consts::FRAC_PI_2 - 0.0001;
+
+        // Rotation
+        if response.dragged_by(egui::PointerButton::Secondary) {
+            self.yaw += response.drag_delta().x * 0.005;
+            self.pitch += response.drag_delta().y * -0.005;
+
+            self.pitch = self.pitch.clamp(-SAFE_FRAC_PI_2, SAFE_FRAC_PI_2);
+        }
+
+        // Translation
+        if response.dragged_by(egui::PointerButton::Middle) {
+            let delta = Matrix4::from_euler_angles(self.pitch, self.yaw, 0.0).transform_vector(
+                &Vector3::new(
+                    response.drag_delta().x * 0.001 / self.zoom,
+                    response.drag_delta().y * 0.001 / self.zoom,
+                    0.0,
+                ),
+            );
+
+            self.position += delta;
+        }
+
+        // Zoom
+        if ui.rect_contains_pointer(rect) {
+            ui.ctx().input(|i| {
+                for event in &i.events {
+                    if let egui::Event::Scroll(v) = event {
+                        if v[0] == 0.0 {
+                            if v[1] > 0.0 {
+                                //self.camera.zoom += 0.001 * v[1];
+                                self.zoom *= 1.0 + 0.001 * v[1];
+                            } else if v[1] < 0.0 {
+                                //self.camera.zoom += 0.001 * v[1];
+                                self.zoom /= 1.0 + 0.001 * -v[1];
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
 }
 
 impl Default for Camera {

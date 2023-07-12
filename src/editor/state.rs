@@ -2,13 +2,7 @@ use std::collections::HashSet;
 
 use crate::icon;
 
-use super::Editor;
-
-pub enum Tool {
-    Move,
-    Rotate,
-    Scale,
-}
+use super::{tool, Editor};
 
 pub struct State {
     pub selected: HashSet<u32>,
@@ -17,7 +11,8 @@ pub struct State {
     pub object_icon: egui::TextureHandle,
     pub toolpath_icon: egui::TextureHandle,
 
-    pub tool: Tool,
+    pub tool: tool::Tool,
+    pub action: Option<tool::Action>,
 }
 
 impl State {
@@ -32,7 +27,8 @@ impl State {
             group_icon,
             object_icon,
             toolpath_icon,
-            tool: Tool::Move,
+            tool: tool::Tool::Move,
+            action: None,
         }
     }
 }

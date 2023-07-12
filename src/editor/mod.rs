@@ -1,5 +1,5 @@
 use eframe::{egui, egui_wgpu, wgpu};
-use nalgebra::{Matrix4, Vector3};
+use nalgebra::Vector3;
 use std::{collections::HashSet, sync::Arc};
 
 pub mod object;
@@ -13,41 +13,6 @@ pub mod state;
 pub mod grid;
 
 pub mod camera;
-
-pub enum Entity {
-    Object(object::Object),
-    Toolpath(toolpath::Toolpath),
-}
-
-impl Entity {
-    pub fn ui(
-        &mut self,
-        ui: &mut egui::Ui,
-        state: &mut state::State,
-        messages: &mut Vec<state::Message>,
-    ) {
-        match self {
-            Entity::Object(v) => v.ui(ui, state, messages),
-            Entity::Toolpath(v) => v.ui(ui, state, messages),
-        }
-    }
-
-    pub fn id(&self) -> u32 {
-        match self {
-            Entity::Object(v) => v.id,
-            Entity::Toolpath(v) => v.id,
-        }
-    }
-
-    pub fn set_id(&mut self, id: u32) {
-        match self {
-            Entity::Object(v) => v.id = id,
-            Entity::Toolpath(v) => v.id = id,
-        }
-    }
-}
-
-const SAFE_FRAC_PI_2: f32 = std::f32::consts::FRAC_PI_2 - 0.0001;
 
 #[derive(Default)]
 pub struct Editor {
@@ -80,7 +45,7 @@ impl Editor {
             &camera_uniform.bind_group_layout,
         );
 
-        let arrow_renderer = tool::Renderer::new(
+        let tool_renderer = tool::Renderer::new(
             device,
             wgpu_render_state.target_format,
             &camera_uniform.bind_group_layout,
@@ -93,7 +58,7 @@ impl Editor {
             .insert(Renderer {
                 grid_renderer,
                 object_renderer,
-                arrow_renderer,
+                tool_renderer,
                 camera_uniform,
             });
 
@@ -121,56 +86,20 @@ impl Editor {
         (inf, sup)
     }
 
+    pub fn translate(&mut self, objects: &HashSet<u32>, delta: Vector3<f32>) {
+        for object in self.objects.iter_mut().filter(|o| objects.contains(&o.id)) {
+            object.translate(delta);
+        }
+    }
+
     pub fn ui(&mut self, ui: &mut egui::Ui, state: &mut state::State) {
         let available_size = ui.available_size();
 
-        self.camera.resize(available_size.x, available_size.y);
-
         let (rect, response) = ui.allocate_exact_size(available_size, egui::Sense::drag());
 
-        // Rotation
-        if response.dragged_by(egui::PointerButton::Secondary) {
-            self.camera.yaw += response.drag_delta().x * 0.005;
-            self.camera.pitch += response.drag_delta().y * -0.005;
+        self.camera.handle(ui, rect, &response);
 
-            if self.camera.pitch < -SAFE_FRAC_PI_2 {
-                self.camera.pitch = -SAFE_FRAC_PI_2;
-            } else if self.camera.pitch > SAFE_FRAC_PI_2 {
-                self.camera.pitch = SAFE_FRAC_PI_2;
-            }
-        }
-
-        // Translation
-        if response.dragged_by(egui::PointerButton::Middle) {
-            let delta = Matrix4::from_euler_angles(self.camera.pitch, self.camera.yaw, 0.0)
-                .transform_vector(&Vector3::new(
-                    response.drag_delta().x * 0.001 / self.camera.zoom,
-                    response.drag_delta().y * 0.001 / self.camera.zoom,
-                    0.0,
-                ));
-
-            self.camera.position += delta;
-        }
-
-        // Zoom
-        if ui.rect_contains_pointer(rect) {
-            ui.ctx().input(|i| {
-                for event in &i.events {
-                    if let egui::Event::Scroll(v) = event {
-                        if v[0] == 0.0 {
-                            if v[1] > 0.0 {
-                                //self.camera.zoom += 0.001 * v[1];
-                                self.camera.zoom *= 1.0 + 0.001 * v[1];
-                            } else if v[1] < 0.0 {
-                                //self.camera.zoom += 0.001 * v[1];
-                                self.camera.zoom /= 1.0 + 0.001 * -v[1];
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
+        // Handle selection
         if response.clicked() {
             let pos = response.interact_pointer_pos().unwrap() - response.rect.left_top();
             let camera_ray = self.camera.screen_ray(pos.x, pos.y);
@@ -215,9 +144,6 @@ impl Editor {
             }
         }
 
-        let uniform = self.camera.uniform();
-
-        let mut action = None;
         if let Some(hover_pos) = response.hover_pos() {
             if !state.selected.is_empty() {
                 let pos = hover_pos - response.rect.left_top();
@@ -226,25 +152,65 @@ impl Editor {
                 let (inf, sup) = self.inf_sup(&state.selected);
                 let origin = (sup - inf).scale(0.5) + inf;
 
-                if let Some(axis) =
-                    (tool::Tool::Move { origin }.intersect(&camera_ray, 0.02 / self.camera.zoom))
+                if let Some(tool::Action::Transform { ref axis }) = state.action {
+                    if response.dragged_by(egui::PointerButton::Primary) {
+                        let after =
+                            response.interact_pointer_pos().unwrap() - response.rect.left_top();
+                        let before = after - response.drag_delta();
+
+                        let plane_normal = (camera_ray.origin - origin)
+                            .cross(&axis.vector())
+                            .cross(&axis.vector());
+
+                        let before = self
+                            .camera
+                            .screen_ray(before.x, before.y)
+                            .plane_intersect(&origin, &plane_normal);
+                        let after = self
+                            .camera
+                            .screen_ray(after.x, after.y)
+                            .plane_intersect(&origin, &plane_normal);
+
+                        if let Some(before) = before {
+                            if let Some(after) = after {
+                                let translate =
+                                    axis.vector().scale((after - before).dot(&axis.vector()));
+
+                                self.translate(&state.selected, translate);
+                            }
+                        }
+                    } else {
+                        state.action = None
+                    }
+                } else if let Some(axis) =
+                    state
+                        .tool
+                        .intersect(&origin, &camera_ray, 0.02 / self.camera.zoom)
                 {
-                    action = Some(tool::Action::Hover { axis });
+                    if response.dragged_by(egui::PointerButton::Primary) {
+                        state.action = Some(tool::Action::Transform { axis });
+                    } else {
+                        state.action = Some(tool::Action::Hover { axis });
+                    }
+                } else {
+                    state.action = None;
                 }
             }
         }
 
-        // Generate arrow verticies
-        let arrow_vertex_data = {
+        // Generate tool verticies
+        let tool_vertex_data = {
             let mut verticies = Vec::new();
 
             if !state.selected.is_empty() {
                 let (inf, sup) = self.inf_sup(&state.selected);
                 let origin = (sup - inf).scale(0.5) + inf;
 
-                verticies.append(
-                    &mut tool::Tool::Move { origin }.verticies(0.02 / self.camera.zoom, &action),
-                );
+                verticies.append(&mut state.tool.verticies(
+                    &origin,
+                    0.02 / self.camera.zoom,
+                    &state.action,
+                ));
             }
 
             verticies
@@ -255,7 +221,7 @@ impl Editor {
             let mut verticies = Vec::new();
             for object in self.objects.iter_mut() {
                 if state.selected.contains(&object.id) {
-                    object.color = [1.0, 1.0, 0.0];
+                    object.color = [0.7, 0.7, 1.0];
                 } else {
                     object.color = [0.7, 0.7, 0.7];
                 }
@@ -267,7 +233,9 @@ impl Editor {
         };
 
         let object_verticies = self.object_verticies;
-        let arrow_verticies = arrow_vertex_data.len() as u32;
+        let tool_verticies = tool_vertex_data.len() as u32;
+
+        let uniform = self.camera.uniform();
 
         let cb = egui_wgpu::CallbackFn::new()
             .prepare(move |_device, queue, _encoder, paint_callback_resources| {
@@ -282,18 +250,18 @@ impl Editor {
                     bytemuck::cast_slice(object_vertex_data.as_slice()),
                 );
 
-                // Update arrow vertex buffer
+                // Update tool vertex buffer
                 queue.write_buffer(
-                    &renderer.arrow_renderer.vertex_buffer,
+                    &renderer.tool_renderer.vertex_buffer,
                     0,
-                    bytemuck::cast_slice(arrow_vertex_data.as_slice()),
+                    bytemuck::cast_slice(tool_vertex_data.as_slice()),
                 );
 
                 Vec::new()
             })
             .paint(move |_info, render_pass, paint_callback_resources| {
                 let renderer: &Renderer = paint_callback_resources.get().unwrap();
-                renderer.render(render_pass, object_verticies, arrow_verticies);
+                renderer.render(render_pass, object_verticies, tool_verticies);
             });
 
         let callback = egui::PaintCallback {
@@ -325,7 +293,7 @@ pub struct Renderer {
     camera_uniform: camera::Uniform,
     grid_renderer: grid::Renderer,
     object_renderer: object::Renderer,
-    arrow_renderer: tool::Renderer,
+    tool_renderer: tool::Renderer,
 }
 
 impl Renderer {
@@ -341,7 +309,7 @@ impl Renderer {
             self.object_renderer.render(render_pass, object_verticies);
         }
         if arrow_verticies != 0 {
-            self.arrow_renderer.render(render_pass, arrow_verticies);
+            self.tool_renderer.render(render_pass, arrow_verticies);
         }
     }
 }
