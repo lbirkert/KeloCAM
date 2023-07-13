@@ -114,7 +114,7 @@ impl Projection {
         }
     }
 
-    pub fn normal(&self, x: f32, y: f32) -> Vector3<f32> {
+    pub fn normal(&self, x: f32, y: f32, _zoom: f32) -> Vector3<f32> {
         match self {
             Projection::Perspective { fovy, .. } => {
                 Vector3::new(x, y, 1.0 / (fovy / 2.0).tan()).normalize()
@@ -123,17 +123,21 @@ impl Projection {
         }
     }
 
-    pub fn pos(&self, x: f32, y: f32) -> Vector3<f32> {
+    pub fn pos(&self, x: f32, y: f32, zoom: f32) -> Vector3<f32> {
         match self {
             Projection::Perspective { .. } => Vector3::zeros(),
-            Projection::Orthographic { .. } => Vector3::new(x, y, 0.0),
+            Projection::Orthographic { .. } => Vector3::new(-x, -y, 0.0).scale(0.5 / zoom),
         }
     }
 
     // TODO: find out why builtin orthographic projection is not working and DRY this
     fn ortho(aspect: f32, zoom: f32, _znear: f32, _zfar: f32) -> Matrix4<f32> {
         Matrix4::new_translation(&Vector3::new(0.0, 0.0, 0.5))
-            * Matrix4::new_nonuniform_scaling(&Vector3::new(zoom / aspect, zoom, 0.01))
+            * Matrix4::new_nonuniform_scaling(&Vector3::new(
+                zoom / (aspect * 0.5),
+                zoom / 0.5,
+                0.001,
+            ))
     }
 }
 
@@ -187,8 +191,8 @@ impl Camera {
         let x = (2.0 * x - self.width) / self.height;
         let y = (2.0 * y - self.height) / self.height;
         let rot = Matrix4::from_euler_angles(self.pitch, self.yaw, 0.0);
-        let normal = -rot.transform_vector(&self.projection.normal(x, y));
-        let pos = self.eye() + rot.transform_vector(&self.projection.pos(x, y));
+        let normal = -rot.transform_vector(&self.projection.normal(x, y, self.zoom));
+        let pos = self.eye() + rot.transform_vector(&self.projection.pos(x, y, self.zoom));
 
         Ray::new(pos.xzy(), normal.xzy())
     }
@@ -251,19 +255,19 @@ impl Default for Camera {
             height: 400.0,
             width: 400.0,
 
+            /*
             projection: Projection::Perspective {
                 aspect: 1.0,
                 fovy: std::f32::consts::FRAC_PI_4,
                 znear: 0.01,
                 zfar: 300.0,
             },
-            /*
+            */
             projection: Projection::Orthographic {
                 aspect: 1.0,
                 znear: 0.01,
                 zfar: 100.0,
             },
-            */
         }
     }
 }
