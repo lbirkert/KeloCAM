@@ -108,12 +108,12 @@ impl Tool {
         let b = normal.cross(&a);
         let c = normal.scale(2.0);
 
-        Self::triangle(verticies, origin, scale / 2.0, a, -a, -b, color);
-        Self::triangle(verticies, origin, scale / 2.0, a, b, -a, color);
-        Self::triangle(verticies, origin, scale / 2.0, a, b, c, color);
-        Self::triangle(verticies, origin, scale / 2.0, b, -a, c, color);
-        Self::triangle(verticies, origin, scale / 2.0, -a, -b, c, color);
-        Self::triangle(verticies, origin, scale / 2.0, -b, a, c, color);
+        Self::triangle(verticies, origin, scale, a, -a, -b, color);
+        Self::triangle(verticies, origin, scale, a, b, -a, color);
+        Self::triangle(verticies, origin, scale, a, b, c, color);
+        Self::triangle(verticies, origin, scale, b, -a, c, color);
+        Self::triangle(verticies, origin, scale, -a, -b, c, color);
+        Self::triangle(verticies, origin, scale, -b, a, c, color);
     }
 
     // TODO: rework this
