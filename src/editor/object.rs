@@ -98,7 +98,7 @@ impl Object {
             };
 
             // Convert to KeloCAM Units
-            object.scale(Vector3::from_element(0.1));
+            object.scale(&Vector3::from_element(0.1));
 
             // Move object to center. TODO: find free space for object
             let (min, max) = object.inf_sup();
@@ -107,7 +107,7 @@ impl Object {
                 -min.y - (max.y - min.y) / 2.0,
                 -min.z,
             );
-            object.translate(delta);
+            object.translate(&delta);
 
             object
         })
@@ -158,7 +158,7 @@ impl Object {
         lines
     }
 
-    pub fn translate(&mut self, delta: Vector3<f32>) {
+    pub fn translate(&mut self, delta: &Vector3<f32>) {
         for triangle in self.triangles.iter_mut() {
             triangle.v1 += delta;
             triangle.v2 += delta;
@@ -166,15 +166,15 @@ impl Object {
         }
     }
 
-    pub fn scale(&mut self, delta: Vector3<f32>) {
+    pub fn scale(&mut self, delta: &Vector3<f32>) {
         for triangle in self.triangles.iter_mut() {
-            triangle.v1.component_mul_assign(&delta);
-            triangle.v2.component_mul_assign(&delta);
-            triangle.v3.component_mul_assign(&delta);
+            triangle.v1.component_mul_assign(delta);
+            triangle.v2.component_mul_assign(delta);
+            triangle.v3.component_mul_assign(delta);
         }
     }
 
-    pub fn rotate(&mut self, delta: Vector3<f32>) {
+    pub fn rotate(&mut self, delta: &Vector3<f32>) {
         let delta = Matrix4::from_euler_angles(delta.x, delta.y, delta.z);
 
         for triangle in self.triangles.iter_mut() {

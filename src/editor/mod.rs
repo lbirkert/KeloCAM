@@ -86,9 +86,17 @@ impl Editor {
         (inf, sup)
     }
 
-    pub fn translate(&mut self, objects: &HashSet<u32>, delta: Vector3<f32>) {
+    pub fn translate(&mut self, objects: &HashSet<u32>, delta: &Vector3<f32>) {
         for object in self.objects.iter_mut().filter(|o| objects.contains(&o.id)) {
             object.translate(delta);
+        }
+    }
+
+    pub fn scale(&mut self, objects: &HashSet<u32>, origin: &Vector3<f32>, delta: &Vector3<f32>) {
+        for object in self.objects.iter_mut().filter(|o| objects.contains(&o.id)) {
+            object.translate(&-origin);
+            object.scale(delta);
+            object.translate(origin);
         }
     }
 
@@ -153,6 +161,7 @@ impl Editor {
                 let origin = (sup - inf).scale(0.5) + inf;
 
                 if let Some(tool::Action::Transform { ref axis }) = state.action {
+                    ui.output_mut(|o| o.cursor_icon = egui::CursorIcon::Grabbing);
                     if response.dragged_by(egui::PointerButton::Primary) {
                         let after =
                             response.interact_pointer_pos().unwrap() - response.rect.left_top();
@@ -173,10 +182,24 @@ impl Editor {
 
                         if let Some(before) = before {
                             if let Some(after) = after {
-                                let translate =
-                                    axis.vector().scale((after - before).dot(&axis.vector()));
+                                match state.tool {
+                                    tool::Tool::Move => {
+                                        let translate = axis
+                                            .vector()
+                                            .scale((after - before).dot(&axis.vector()));
 
-                                self.translate(&state.selected, translate);
+                                        self.translate(&state.selected, &translate);
+                                    }
+                                    tool::Tool::Scale => {
+                                        let scale = axis
+                                            .vector()
+                                            .scale((after - before).dot(&axis.vector()))
+                                            + Vector3::new(1.0, 1.0, 1.0);
+
+                                        self.scale(&state.selected, &origin, &scale);
+                                    }
+                                    _ => panic!(),
+                                }
                             }
                         }
                     } else {
@@ -191,6 +214,7 @@ impl Editor {
                         state.action = Some(tool::Action::Transform { axis });
                     } else {
                         state.action = Some(tool::Action::Hover { axis });
+                        ui.output_mut(|o| o.cursor_icon = egui::CursorIcon::Grab);
                     }
                 } else {
                     state.action = None;

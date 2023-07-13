@@ -27,7 +27,7 @@ impl State {
             group_icon,
             object_icon,
             toolpath_icon,
-            tool: tool::Tool::Move,
+            tool: tool::Tool::Scale,
             action: None,
         }
     }
