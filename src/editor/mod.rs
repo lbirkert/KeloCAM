@@ -68,11 +68,6 @@ impl Editor {
         })
     }
 
-    pub fn remove(&mut self, id: u32) {
-        let index = self.objects.iter().position(|x| x.id == id).unwrap();
-        self.objects.remove(index);
-    }
-
     pub fn inf_sup(&self, objects: &HashSet<u32>) -> (Vector3<f32>, Vector3<f32>) {
         let mut inf = Vector3::from_element(std::f32::INFINITY);
         let mut sup = Vector3::from_element(std::f32::NEG_INFINITY);
@@ -86,21 +81,12 @@ impl Editor {
         (inf, sup)
     }
 
-    pub fn translate(&mut self, objects: &HashSet<u32>, delta: &Vector3<f32>) {
-        for object in self.objects.iter_mut().filter(|o| objects.contains(&o.id)) {
-            object.translate(delta);
-        }
-    }
-
-    pub fn scale(&mut self, objects: &HashSet<u32>, origin: &Vector3<f32>, delta: &Vector3<f32>) {
-        for object in self.objects.iter_mut().filter(|o| objects.contains(&o.id)) {
-            object.translate(&-origin);
-            object.scale(delta);
-            object.translate(origin);
-        }
-    }
-
-    pub fn ui(&mut self, ui: &mut egui::Ui, state: &mut state::State) {
+    pub fn ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        state: &mut state::State,
+        messages: &mut Vec<state::Message>,
+    ) {
         let available_size = ui.available_size();
 
         let (rect, response) = ui.allocate_exact_size(available_size, egui::Sense::drag());
@@ -140,26 +126,26 @@ impl Editor {
             }
 
             if intersection_id != 0 {
-                if !ui.input(|i| i.modifiers.contains(egui::Modifiers::SHIFT)) {
-                    state.selected.clear();
-                }
-
-                if state.selected.contains(&intersection_id) {
-                    state.selected.remove(&intersection_id);
-                } else {
-                    state.selected.insert(intersection_id);
-                }
+                messages.push(state::Message::Select(intersection_id));
             }
         }
 
-        if let Some(hover_pos) = response.hover_pos() {
-            if !state.selected.is_empty() {
+        if state.selection.valid() {
+            // Handle viewport delete
+            if ui.rect_contains_pointer(rect) && ui.input(|i| i.key_pressed(egui::Key::Delete)) {
+                for object in self
+                    .objects
+                    .iter()
+                    .filter(|i| state.selection.contains(&i.id))
+                {
+                    messages.push(state::Message::Delete(object.id));
+                }
+            }
+
+            // Handle viewport transformation
+            if let Some(hover_pos) = response.hover_pos() {
                 let pos = hover_pos - response.rect.left_top();
                 let camera_ray = self.camera.screen_ray(pos.x, pos.y);
-
-                let (inf, sup) = self.inf_sup(&state.selected);
-                let origin = (sup - inf).scale(0.5) + inf;
-
                 if let Some(tool::Action::Transform { ref axis }) = state.action {
                     ui.output_mut(|o| o.cursor_icon = egui::CursorIcon::Grabbing);
                     if response.dragged_by(egui::PointerButton::Primary) {
@@ -167,49 +153,59 @@ impl Editor {
                             response.interact_pointer_pos().unwrap() - response.rect.left_top();
                         let before = after - response.drag_delta();
 
-                        let plane_normal = (camera_ray.origin - origin)
+                        let plane_normal = (camera_ray.origin - state.selection.origin)
                             .cross(&axis.vector())
                             .cross(&axis.vector());
 
                         let before = self
                             .camera
                             .screen_ray(before.x, before.y)
-                            .plane_intersect(&origin, &plane_normal);
+                            .plane_intersect(&state.selection.origin, &plane_normal);
                         let after = self
                             .camera
                             .screen_ray(after.x, after.y)
-                            .plane_intersect(&origin, &plane_normal);
+                            .plane_intersect(&state.selection.origin, &plane_normal);
 
-                        if let Some(before) = before {
-                            if let Some(after) = after {
-                                match state.tool {
-                                    tool::Tool::Move => {
-                                        let translate = axis
-                                            .vector()
-                                            .scale((after - before).dot(&axis.vector()));
+                        if before.is_some() && after.is_some() {
+                            let before = unsafe { before.as_ref().unwrap_unchecked() };
+                            let after = unsafe { after.as_ref().unwrap_unchecked() };
 
-                                        self.translate(&state.selected, &translate);
+                            match state.tool {
+                                tool::Tool::Move => {
+                                    let delta =
+                                        axis.vector().scale((after - before).dot(&axis.vector()));
+
+                                    if let object::Transformation::Translate { ref mut translate } =
+                                        &mut state.selection.transformation
+                                    {
+                                        *translate += delta;
                                     }
-                                    tool::Tool::Scale => {
-                                        let scale = axis
-                                            .vector()
-                                            .scale((after - before).dot(&axis.vector()))
-                                            + Vector3::new(1.0, 1.0, 1.0);
-
-                                        self.scale(&state.selected, &origin, &scale);
-                                    }
-                                    _ => panic!(),
                                 }
+                                tool::Tool::Scale => {
+                                    let delta = axis
+                                        .vector()
+                                        .scale((after - before).dot(&axis.vector()) * 2.0)
+                                        .component_div(
+                                            &(state.selection.pre_sup - state.selection.pre_inf),
+                                        );
+
+                                    if let object::Transformation::Scale { ref mut scale } =
+                                        &mut state.selection.transformation
+                                    {
+                                        *scale += delta;
+                                    }
+                                }
+                                _ => panic!(),
                             }
                         }
                     } else {
                         state.action = None
                     }
-                } else if let Some(axis) =
-                    state
-                        .tool
-                        .intersect(&origin, &camera_ray, 0.02 / self.camera.zoom)
-                {
+                } else if let Some(axis) = state.tool.intersect(
+                    &state.selection.origin,
+                    &camera_ray,
+                    0.02 / self.camera.zoom,
+                ) {
                     if response.dragged_by(egui::PointerButton::Primary) {
                         state.action = Some(tool::Action::Transform { axis });
                     } else {
@@ -220,18 +216,17 @@ impl Editor {
                     state.action = None;
                 }
             }
+
+            state.selection.update_origin(&self.objects);
         }
 
         // Generate tool verticies
         let tool_vertex_data = {
             let mut verticies = Vec::new();
 
-            if !state.selected.is_empty() {
-                let (inf, sup) = self.inf_sup(&state.selected);
-                let origin = (sup - inf).scale(0.5) + inf;
-
+            if state.selection.valid() {
                 verticies.append(&mut state.tool.verticies(
-                    &origin,
+                    &state.selection.origin,
                     0.02 / self.camera.zoom,
                     &state.action,
                 ));
@@ -243,13 +238,20 @@ impl Editor {
         // Generate object verticies
         let object_vertex_data = {
             let mut verticies = Vec::new();
+
+            let selection_applyable = state
+                .selection
+                .transformation
+                .to_applyable(state.selection.origin);
+
             for object in self.objects.iter_mut() {
-                if state.selected.contains(&object.id) {
+                if state.selection.contains(&object.id) {
                     object.color = [0.7, 0.7, 1.0];
+                    verticies.append(&mut object.transformed_verticies(&selection_applyable));
                 } else {
                     object.color = [0.7, 0.7, 0.7];
+                    verticies.append(&mut object.verticies());
                 }
-                verticies.append(&mut object.verticies());
             }
 
             self.object_verticies = verticies.len() as u32;
@@ -296,14 +298,22 @@ impl Editor {
         ui.painter().add(callback);
     }
 
-    pub fn sidebar(&mut self, state: &mut state::State, ui: &mut egui::Ui) {
-        let mut messages = Vec::new();
+    pub fn sidebar(
+        &mut self,
+        ui: &mut egui::Ui,
+        state: &mut state::State,
+        messages: &mut Vec<state::Message>,
+    ) {
         for object in self.objects.iter_mut() {
-            object.ui(ui, state, &mut messages);
+            object.ui(ui, state, messages);
         }
 
-        for message in messages.iter() {
-            message.process(self, state);
+        if ui.button("Move").clicked() {
+            state.switch_tool(tool::Tool::Move, &mut self.objects);
+        }
+
+        if ui.button("Scale").clicked() {
+            state.switch_tool(tool::Tool::Scale, &mut self.objects);
         }
     }
 

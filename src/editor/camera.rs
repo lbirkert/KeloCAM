@@ -132,12 +132,9 @@ impl Projection {
 
     // TODO: find out why builtin orthographic projection is not working and DRY this
     fn ortho(aspect: f32, zoom: f32, _znear: f32, _zfar: f32) -> Matrix4<f32> {
-        Matrix4::new_translation(&Vector3::new(0.0, 0.0, 0.5))
-            * Matrix4::new_nonuniform_scaling(&Vector3::new(
-                zoom / (aspect * 0.5),
-                zoom / 0.5,
-                0.001,
-            ))
+        let mut mat = Matrix4::new_translation(&Vector3::new(0.0, 0.0, 0.5));
+        mat.append_nonuniform_scaling_mut(&Vector3::new(zoom / (aspect * 0.5), zoom / 0.5, 0.001));
+        mat
     }
 }
 

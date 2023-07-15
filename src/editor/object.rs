@@ -47,23 +47,78 @@ pub struct Triangle {
     pub v3: Vector3<f32>,
 }
 
-impl Triangle {
-    pub fn append_verticies(&self, verticies: &mut Vec<Vertex>, color: [f32; 3]) {
-        verticies.push(Vertex {
-            pos: self.v1.into(),
-            normal: self.normal.into(),
-            color,
-        });
-        verticies.push(Vertex {
-            pos: self.v2.into(),
-            normal: self.normal.into(),
-            color,
-        });
-        verticies.push(Vertex {
-            pos: self.v3.into(),
-            normal: self.normal.into(),
-            color,
-        });
+#[derive(Debug)]
+/// Describes a single transformation
+pub enum Transformation {
+    Translate { translate: Vector3<f32> },
+    Scale { scale: Vector3<f32> },
+    Rotate { rotate: Vector3<f32> },
+}
+
+impl Transformation {
+    pub fn to_applyable(&self, origin: Vector3<f32>) -> ApplyableTransformation {
+        match self {
+            Self::Translate { translate } => ApplyableTransformation::Translate {
+                translate: *translate,
+            },
+            Self::Scale { scale } => {
+                let signormal = Vector3::new(scale.x.signum(), scale.y.signum(), scale.z.signum());
+                let mat = Matrix4::new_nonuniform_scaling(scale);
+                ApplyableTransformation::Scale {
+                    mat,
+                    signormal,
+                    origin,
+                }
+            }
+            Self::Rotate { rotate } => {
+                let mat = Matrix4::from_euler_angles(rotate.x, rotate.y, rotate.z);
+                ApplyableTransformation::Rotate { mat, origin }
+            }
+        }
+    }
+
+    pub fn reset(&mut self) {
+        match self {
+            Self::Translate { ref mut translate } => *translate = Vector3::zeros(),
+            Self::Scale { ref mut scale } => *scale = Vector3::from_element(1.0),
+            Self::Rotate { ref mut rotate } => *rotate = Vector3::zeros(),
+        }
+    }
+}
+
+pub enum ApplyableTransformation {
+    Translate {
+        translate: Vector3<f32>,
+    },
+    Scale {
+        mat: Matrix4<f32>,
+        signormal: Vector3<f32>,
+        origin: Vector3<f32>,
+    },
+    Rotate {
+        mat: Matrix4<f32>,
+        origin: Vector3<f32>,
+    },
+}
+
+impl ApplyableTransformation {
+    /// Clones and transforms a normal vector
+    pub fn normal(&self, normal: &Vector3<f32>) -> Vector3<f32> {
+        match self {
+            Self::Translate { .. } => *normal,
+            Self::Scale { signormal, .. } => normal.component_mul(signormal),
+            Self::Rotate { mat, .. } => mat.transform_vector(normal),
+        }
+    }
+
+    // Clones and transforms a point vector
+    pub fn point(&self, point: &Vector3<f32>) -> Vector3<f32> {
+        match self {
+            Self::Translate { translate } => point + translate,
+            Self::Scale { mat, origin, .. } | Self::Rotate { mat, origin } => {
+                mat.transform_vector(&(point - origin)) + origin
+            }
+        }
     }
 }
 
@@ -98,7 +153,12 @@ impl Object {
             };
 
             // Convert to KeloCAM Units
-            object.scale(&Vector3::from_element(0.1));
+            object.transform(
+                &Transformation::Scale {
+                    scale: Vector3::from_element(0.1),
+                }
+                .to_applyable(Vector3::zeros()),
+            );
 
             // Move object to center. TODO: find free space for object
             let (min, max) = object.inf_sup();
@@ -107,7 +167,9 @@ impl Object {
                 -min.y - (max.y - min.y) / 2.0,
                 -min.z,
             );
-            object.translate(&delta);
+            object.transform(
+                &Transformation::Translate { translate: delta }.to_applyable(Vector3::zeros()),
+            );
 
             object
         })
@@ -118,7 +180,47 @@ impl Object {
             Vec::with_capacity(std::mem::size_of::<Vertex>() * self.triangles.len() * 3);
 
         for triangle in &self.triangles {
-            triangle.append_verticies(&mut verticies, self.color);
+            verticies.push(Vertex {
+                pos: triangle.v1.into(),
+                normal: triangle.normal.into(),
+                color: self.color,
+            });
+            verticies.push(Vertex {
+                pos: triangle.v2.into(),
+                normal: triangle.normal.into(),
+                color: self.color,
+            });
+            verticies.push(Vertex {
+                pos: triangle.v3.into(),
+                normal: triangle.normal.into(),
+                color: self.color,
+            });
+        }
+
+        verticies
+    }
+
+    pub fn transformed_verticies(&self, transformation: &ApplyableTransformation) -> Vec<Vertex> {
+        let mut verticies: Vec<Vertex> =
+            Vec::with_capacity(std::mem::size_of::<Vertex>() * self.triangles.len() * 3);
+
+        for triangle in &self.triangles {
+            let normal = transformation.normal(&triangle.normal);
+            verticies.push(Vertex {
+                pos: transformation.point(&triangle.v1).into(),
+                normal: normal.into(),
+                color: self.color,
+            });
+            verticies.push(Vertex {
+                pos: transformation.point(&triangle.v2).into(),
+                normal: normal.into(),
+                color: self.color,
+            });
+            verticies.push(Vertex {
+                pos: transformation.point(&triangle.v3).into(),
+                normal: normal.into(),
+                color: self.color,
+            });
         }
 
         verticies
@@ -158,30 +260,12 @@ impl Object {
         lines
     }
 
-    pub fn translate(&mut self, delta: &Vector3<f32>) {
+    pub fn transform(&mut self, transformation: &ApplyableTransformation) {
         for triangle in self.triangles.iter_mut() {
-            triangle.v1 += delta;
-            triangle.v2 += delta;
-            triangle.v3 += delta;
-        }
-    }
-
-    pub fn scale(&mut self, delta: &Vector3<f32>) {
-        for triangle in self.triangles.iter_mut() {
-            triangle.v1.component_mul_assign(delta);
-            triangle.v2.component_mul_assign(delta);
-            triangle.v3.component_mul_assign(delta);
-        }
-    }
-
-    pub fn rotate(&mut self, delta: &Vector3<f32>) {
-        let delta = Matrix4::from_euler_angles(delta.x, delta.y, delta.z);
-
-        for triangle in self.triangles.iter_mut() {
-            triangle.v1 = delta.transform_vector(&triangle.v1);
-            triangle.v2 = delta.transform_vector(&triangle.v2);
-            triangle.v3 = delta.transform_vector(&triangle.v3);
-            triangle.normal = delta.transform_vector(&triangle.normal);
+            triangle.v1 = transformation.point(&triangle.v1);
+            triangle.v2 = transformation.point(&triangle.v2);
+            triangle.v3 = transformation.point(&triangle.v3);
+            triangle.normal = transformation.normal(&triangle.normal);
         }
     }
 
@@ -197,6 +281,24 @@ impl Object {
         (inf, sup)
     }
 
+    pub fn transformed_inf_sup(
+        &self,
+        transformation: &ApplyableTransformation,
+    ) -> (Vector3<f32>, Vector3<f32>) {
+        let mut inf = Vector3::from_element(std::f32::INFINITY);
+        let mut sup = Vector3::from_element(std::f32::NEG_INFINITY);
+
+        for triangle in self.triangles.iter() {
+            let v1 = transformation.point(&triangle.v1);
+            let v2 = transformation.point(&triangle.v2);
+            let v3 = transformation.point(&triangle.v3);
+            inf = inf.inf(&v1.inf(&v2.inf(&v3)));
+            sup = sup.sup(&v1.sup(&v2.sup(&v3)));
+        }
+
+        (inf, sup)
+    }
+
     pub fn ui(
         &mut self,
         ui: &mut egui::Ui,
@@ -207,18 +309,10 @@ impl Object {
             ui.add(egui::Image::new(&state.object_icon, vec2(16.0, 16.0)));
 
             let response =
-                ui.selectable_label(state.selected.contains(&self.id), self.name.as_str());
+                ui.selectable_label(state.selection.contains(&self.id), self.name.as_str());
 
             if response.clicked() {
-                if !ui.input(|i| i.modifiers.contains(egui::Modifiers::SHIFT)) {
-                    state.selected.clear();
-                }
-
-                if state.selected.contains(&self.id) {
-                    state.selected.remove(&self.id);
-                } else {
-                    state.selected.insert(self.id);
-                }
+                messages.push(state::Message::Select(self.id));
             }
 
             response.context_menu(|ui| {

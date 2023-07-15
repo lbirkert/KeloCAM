@@ -68,13 +68,10 @@ impl Toolpath {
             ui.add(egui::Image::new(&state.object_icon, vec2(16.0, 16.0)));
 
             let response =
-                ui.selectable_label(state.selected.contains(&self.id), self.name.as_str());
+                ui.selectable_label(state.selection.contains(&self.id), self.name.as_str());
 
             if response.clicked() {
-                if !ui.input(|i| i.modifiers.contains(egui::Modifiers::SHIFT)) {
-                    state.selected.clear();
-                }
-                state.selected.insert(self.id);
+                messages.push(state::Message::Select(self.id));
             }
 
             response.context_menu(|ui| {

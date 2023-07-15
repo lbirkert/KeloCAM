@@ -2,7 +2,10 @@ use eframe::wgpu;
 use nalgebra::{Unit, Vector3};
 use std::sync::Arc;
 
-use super::ray::Ray;
+use super::{
+    object::{self, Transformation},
+    ray::Ray,
+};
 
 #[derive(Debug)]
 pub enum Axis {
@@ -34,6 +37,20 @@ pub enum Tool {
 }
 
 impl Tool {
+    pub fn selection_transformation(&self) -> Transformation {
+        match self {
+            Tool::Move => object::Transformation::Translate {
+                translate: Vector3::zeros(),
+            },
+            Tool::Scale => object::Transformation::Scale {
+                scale: Vector3::from_element(1.0),
+            },
+            Tool::Rotate => object::Transformation::Rotate {
+                rotate: Vector3::zeros(),
+            },
+        }
+    }
+
     pub fn verticies(
         &self,
         offset: &Vector3<f32>,
