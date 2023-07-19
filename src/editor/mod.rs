@@ -3,10 +3,11 @@ use nalgebra::Vector3;
 use std::{collections::HashSet, sync::Arc};
 
 pub mod object;
-pub mod tool;
 pub mod toolpath;
 
+pub mod path;
 pub mod ray;
+pub mod tool;
 
 pub mod state;
 
@@ -22,7 +23,7 @@ pub struct Editor {
 
     pub objects: Vec<object::Object>,
     pub object_changed: bool,
-    pub object_verticies: u32,
+    pub object_vertex_count: u32,
 }
 
 impl Editor {
@@ -51,6 +52,12 @@ impl Editor {
             &camera_uniform.bind_group_layout,
         );
 
+        let path_renderer = path::Renderer::new(
+            device,
+            wgpu_render_state.target_format,
+            &camera_uniform.bind_group_layout,
+        );
+
         wgpu_render_state
             .renderer
             .write()
@@ -59,6 +66,7 @@ impl Editor {
                 grid_renderer,
                 object_renderer,
                 tool_renderer,
+                path_renderer,
                 camera_uniform,
             });
 
@@ -220,23 +228,8 @@ impl Editor {
             state.selection.update_origin(&self.objects);
         }
 
-        // Generate tool verticies
-        let tool_vertex_data = {
-            let mut verticies = Vec::new();
-
-            if state.selection.valid() {
-                verticies.append(&mut state.tool.verticies(
-                    &state.selection.origin,
-                    0.02 / self.camera.zoom,
-                    &state.action,
-                ));
-            }
-
-            verticies
-        };
-
         // Generate object verticies
-        let object_vertex_data = {
+        let object_verticies = {
             let mut verticies = Vec::new();
 
             let selection_applyable = state
@@ -254,12 +247,32 @@ impl Editor {
                 }
             }
 
-            self.object_verticies = verticies.len() as u32;
+            self.object_vertex_count = verticies.len() as u32;
             verticies
         };
 
-        let object_verticies = self.object_verticies;
-        let tool_verticies = tool_vertex_data.len() as u32;
+        let mut path_verticies = Vec::new();
+        let mut path_indicies = Vec::new();
+
+        // Generate tool verticies
+        let mut tool_verticies = Vec::new();
+
+        if state.selection.valid() {
+            state.tool.verticies(
+                &mut tool_verticies,
+                &mut path_indicies,
+                &mut path_verticies,
+                &state.selection.origin,
+                0.02 / self.camera.zoom,
+                &state.action,
+            );
+        }
+
+        let path_vertex_count = path_verticies.len() as u32;
+        let path_index_count = path_indicies.len() as u32;
+
+        let object_vertex_count = self.object_vertex_count;
+        let tool_vertex_count = tool_verticies.len() as u32;
 
         let uniform = self.camera.uniform();
 
@@ -273,21 +286,39 @@ impl Editor {
                 queue.write_buffer(
                     &renderer.object_renderer.vertex_buffer,
                     0,
-                    bytemuck::cast_slice(object_vertex_data.as_slice()),
+                    bytemuck::cast_slice(object_verticies.as_slice()),
                 );
 
                 // Update tool vertex buffer
                 queue.write_buffer(
                     &renderer.tool_renderer.vertex_buffer,
                     0,
-                    bytemuck::cast_slice(tool_vertex_data.as_slice()),
+                    bytemuck::cast_slice(tool_verticies.as_slice()),
+                );
+
+                // Update path vertex buffer
+                queue.write_buffer(
+                    &renderer.path_renderer.vertex_buffer,
+                    0,
+                    bytemuck::cast_slice(path_verticies.as_slice()),
+                );
+                queue.write_buffer(
+                    &renderer.path_renderer.index_buffer,
+                    0,
+                    bytemuck::cast_slice(path_indicies.as_slice()),
                 );
 
                 Vec::new()
             })
             .paint(move |_info, render_pass, paint_callback_resources| {
                 let renderer: &Renderer = paint_callback_resources.get().unwrap();
-                renderer.render(render_pass, object_verticies, tool_verticies);
+                renderer.render(
+                    render_pass,
+                    object_vertex_count,
+                    tool_vertex_count,
+                    path_vertex_count,
+                    path_index_count,
+                );
             });
 
         let callback = egui::PaintCallback {
@@ -328,22 +359,33 @@ pub struct Renderer {
     grid_renderer: grid::Renderer,
     object_renderer: object::Renderer,
     tool_renderer: tool::Renderer,
+    path_renderer: path::Renderer,
 }
 
 impl Renderer {
     fn render<'rp>(
         &'rp self,
         render_pass: &mut wgpu::RenderPass<'rp>,
-        object_verticies: u32,
-        arrow_verticies: u32,
+        object_vertex_count: u32,
+        tool_vertex_count: u32,
+        path_vertex_count: u32,
+        path_index_count: u32,
     ) {
         render_pass.set_bind_group(0, &self.camera_uniform.bind_group, &[]);
         self.grid_renderer.render(render_pass);
-        if object_verticies != 0 {
-            self.object_renderer.render(render_pass, object_verticies);
+
+        if object_vertex_count != 0 {
+            self.object_renderer
+                .render(render_pass, object_vertex_count);
         }
-        if arrow_verticies != 0 {
-            self.tool_renderer.render(render_pass, arrow_verticies);
+
+        if path_vertex_count != 0 {
+            self.path_renderer
+                .render(render_pass, path_vertex_count, path_index_count);
+        }
+
+        if tool_vertex_count != 0 {
+            self.tool_renderer.render(render_pass, tool_vertex_count);
         }
     }
 }

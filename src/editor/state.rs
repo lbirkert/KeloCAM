@@ -87,7 +87,7 @@ impl State {
         let object_icon = ctx.load_texture("object", icon!("object"), Default::default());
         let toolpath_icon = ctx.load_texture("toolpath", icon!("toolpath"), Default::default());
 
-        let tool = tool::Tool::Scale;
+        let tool = tool::Tool::Move;
 
         Self {
             group_icon,

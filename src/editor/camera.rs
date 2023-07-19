@@ -18,10 +18,12 @@ use super::ray::Ray;
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod)]
 pub struct UniformData {
-    // The projection of the camera
-    proj: [[f32; 4]; 4],
+    // The projection matrix of the camera
+    view_proj: [[f32; 4]; 4],
     // The position of the camera
-    pos: [f32; 4],
+    view_pos: [f32; 4],
+    // width, height, zoom, unused (consider using for DPR)
+    dimensions: [f32; 4],
 }
 
 pub struct Uniform {
@@ -159,12 +161,16 @@ impl Camera {
         self.projection.resize(width, height);
     }
 
-    fn view(&self, eye: Vector3<f32>) -> Matrix4<f32> {
+    pub fn view(&self, eye: Vector3<f32>) -> Matrix4<f32> {
         nalgebra_glm::look_at_lh(
             &eye,
             &(Vector3::new(0.0, 0.0, 0.0) + self.position),
             &Vector3::y_axis(),
         )
+    }
+
+    pub fn proj(&self) -> Matrix4<f32> {
+        self.projection.matrix(self.zoom)
     }
 
     pub fn eye(&self) -> Vector3<f32> {
@@ -176,11 +182,13 @@ impl Camera {
 
     pub fn uniform(&self) -> UniformData {
         let eye = self.eye();
-        let proj = (self.projection.matrix(self.zoom) * self.view(eye)).transpose();
+        let mut view_proj = self.proj() * self.view(eye);
+        view_proj.transpose_mut();
 
         UniformData {
-            proj: proj.into(),
-            pos: Vector4::new(eye.x, eye.y, eye.z, self.zoom).into(),
+            view_proj: view_proj.into(),
+            view_pos: eye.to_homogeneous().into(),
+            dimensions: [self.width, self.height, self.zoom, 0.0],
         }
     }
 
@@ -248,23 +256,23 @@ impl Default for Camera {
             yaw: std::f32::consts::FRAC_PI_4,
             pitch: -std::f32::consts::FRAC_PI_6,
 
-            zoom: 0.02,
+            zoom: 0.04,
             height: 400.0,
             width: 400.0,
 
-            /*
             projection: Projection::Perspective {
                 aspect: 1.0,
                 fovy: std::f32::consts::FRAC_PI_4,
                 znear: 0.01,
                 zfar: 300.0,
             },
-            */
+            /*
             projection: Projection::Orthographic {
                 aspect: 1.0,
                 znear: 0.01,
                 zfar: 100.0,
             },
+            */
         }
     }
 }
