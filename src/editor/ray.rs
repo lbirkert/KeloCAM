@@ -82,4 +82,32 @@ impl Ray {
             None
         }
     }
+
+    pub fn circle_intersect(
+        &self,
+        circle_origin: &Vector3<f32>,
+        circle_normal: &Vector3<f32>,
+        circle_radius: &std::ops::Range<f32>,
+    ) -> Option<Vector3<f32>> {
+        self.circle_intersect_squared(
+            circle_origin,
+            circle_normal,
+            (circle_radius.start * circle_radius.start)..(circle_radius.end * circle_radius.end),
+        )
+    }
+
+    pub fn circle_intersect_squared(
+        &self,
+        circle_origin: &Vector3<f32>,
+        circle_normal: &Vector3<f32>,
+        circle_radius_squared: std::ops::Range<f32>,
+    ) -> Option<Vector3<f32>> {
+        let p = self.plane_intersect(circle_origin, circle_normal)?;
+
+        if circle_radius_squared.contains(&(p - circle_origin).magnitude_squared()) {
+            Some(p)
+        } else {
+            None
+        }
+    }
 }

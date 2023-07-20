@@ -161,11 +161,11 @@ impl Object {
             );
 
             // Move object to center. TODO: find free space for object
-            let (min, max) = object.inf_sup();
+            let (inf, sup) = object.inf_sup();
             let delta = Vector3::new(
-                -min.x - (max.x - min.x) / 2.0,
-                -min.y - (max.y - min.y) / 2.0,
-                -min.z,
+                -inf.x - (sup.x - inf.x) / 2.0,
+                -inf.y - (sup.y - inf.y) / 2.0,
+                -inf.z,
             );
             object.transform(
                 &Transformation::Translate { translate: delta }.to_applyable(Vector3::zeros()),
@@ -173,6 +173,17 @@ impl Object {
 
             object
         })
+    }
+
+    pub fn snap_to_plate(&mut self) {
+        let (inf, _) = self.inf_sup();
+
+        self.transform(
+            &Transformation::Translate {
+                translate: Vector3::new(0.0, 0.0, -inf.z),
+            }
+            .to_applyable(Vector3::zeros()),
+        );
     }
 
     pub fn verticies(&self) -> Vec<Vertex> {

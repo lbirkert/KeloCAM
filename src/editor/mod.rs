@@ -1,4 +1,5 @@
 use eframe::{egui, egui_wgpu, wgpu};
+use egui::ScrollArea;
 use nalgebra::Vector3;
 use std::{collections::HashSet, sync::Arc};
 
@@ -135,12 +136,15 @@ impl Editor {
 
             if intersection_id != 0 {
                 messages.push(state::Message::Select(intersection_id));
+            } else {
+                state.selection.clear(&mut self.objects);
             }
         }
 
-        if state.selection.valid() {
+        // Keyboard shortcuts
+        if ui.rect_contains_pointer(rect) {
             // Handle viewport delete
-            if ui.rect_contains_pointer(rect) && ui.input(|i| i.key_pressed(egui::Key::Delete)) {
+            if ui.input(|i| i.key_pressed(egui::Key::Delete)) {
                 for object in self
                     .objects
                     .iter()
@@ -148,15 +152,28 @@ impl Editor {
                 {
                     messages.push(state::Message::Delete(object.id));
                 }
+            } else if ui.input(|i| i.key_pressed(egui::Key::G)) {
+                state.switch_tool(tool::Tool::Move, &mut self.objects);
+            } else if ui.input(|i| i.key_pressed(egui::Key::R)) {
+                state.switch_tool(tool::Tool::Rotate, &mut self.objects);
+            } else if ui.input(|i| i.key_pressed(egui::Key::S)) {
+                if ui.input(|i| i.modifiers.shift) {
+                    state.switch_tool(tool::Tool::Scale { uniform: false }, &mut self.objects);
+                } else {
+                    state.switch_tool(tool::Tool::Scale { uniform: true }, &mut self.objects);
+                }
             }
+        }
 
+        if state.selection.valid() {
             // Handle viewport transformation
             if let Some(hover_pos) = response.hover_pos() {
                 let pos = hover_pos - response.rect.left_top();
                 let camera_ray = self.camera.screen_ray(pos.x, pos.y);
                 if let Some(tool::Action::Transform { ref axis }) = state.action {
-                    ui.output_mut(|o| o.cursor_icon = egui::CursorIcon::Grabbing);
                     if response.dragged_by(egui::PointerButton::Primary) {
+                        ui.output_mut(|o| o.cursor_icon = egui::CursorIcon::Grabbing);
+
                         let after =
                             response.interact_pointer_pos().unwrap() - response.rect.left_top();
                         let before = after - response.drag_delta();
@@ -189,13 +206,22 @@ impl Editor {
                                         *translate += delta;
                                     }
                                 }
-                                tool::Tool::Scale => {
-                                    let delta = axis
-                                        .vector()
-                                        .scale((after - before).dot(&axis.vector()) * 2.0)
-                                        .component_div(
-                                            &(state.selection.pre_sup - state.selection.pre_inf),
-                                        );
+                                tool::Tool::Scale { uniform } => {
+                                    let fac = 2.0
+                                        / if uniform {
+                                            (state.selection.pre_sup - state.selection.pre_inf)
+                                                .magnitude()
+                                        } else {
+                                            (state.selection.pre_sup - state.selection.pre_inf)
+                                                .dot(&axis.vector())
+                                        };
+
+                                    let delta = if uniform {
+                                        Vector3::from_element(1.0)
+                                    } else {
+                                        axis.vector()
+                                    }
+                                    .scale((after - before).dot(&axis.vector()) * fac);
 
                                     if let object::Transformation::Scale { ref mut scale } =
                                         &mut state.selection.transformation
@@ -203,10 +229,21 @@ impl Editor {
                                         *scale += delta;
                                     }
                                 }
-                                _ => panic!(),
+                                tool::Tool::Rotate => {
+                                    let delta = axis
+                                        .vector()
+                                        .scale((after - before).dot(&axis.vector()) * 0.1);
+
+                                    if let object::Transformation::Rotate { ref mut rotate } =
+                                        &mut state.selection.transformation
+                                    {
+                                        *rotate += delta;
+                                    }
+                                }
                             }
                         }
                     } else {
+                        state.selection.apply(&mut self.objects);
                         state.action = None
                     }
                 } else if let Some(axis) = state.tool.intersect(
@@ -258,7 +295,7 @@ impl Editor {
         let mut tool_verticies = Vec::new();
 
         if state.selection.valid() {
-            state.tool.verticies(
+            state.tool.generate(
                 &mut tool_verticies,
                 &mut path_indicies,
                 &mut path_verticies,
@@ -335,17 +372,45 @@ impl Editor {
         state: &mut state::State,
         messages: &mut Vec<state::Message>,
     ) {
-        for object in self.objects.iter_mut() {
-            object.ui(ui, state, messages);
+        if self.objects.len() == 0 {
+            ui.label("Click on File > Open to import a model");
         }
 
-        if ui.button("Move").clicked() {
-            state.switch_tool(tool::Tool::Move, &mut self.objects);
-        }
+        let row_height = ui.text_style_height(&egui::TextStyle::Button) + 5.0;
+        let max_height =
+            ui.available_height() - ui.text_style_height(&egui::TextStyle::Button) - 10.0;
+        ScrollArea::vertical()
+            .auto_shrink([false; 2])
+            .max_height(max_height)
+            .show_rows(ui, row_height, self.objects.len(), |ui, row_range| {
+                for i in row_range {
+                    self.objects[i].ui(ui, state, messages);
+                }
+            });
 
-        if ui.button("Scale").clicked() {
-            state.switch_tool(tool::Tool::Scale, &mut self.objects);
-        }
+        let mut tmove = false;
+        let mut tscale = false;
+        let mut trotate = false;
+
+        match state.tool {
+            tool::Tool::Move => tmove = true,
+            tool::Tool::Scale { .. } => tscale = true,
+            tool::Tool::Rotate => trotate = true,
+        };
+
+        ui.horizontal(|ui| {
+            if ui.selectable_label(tmove, "G").clicked() {
+                state.switch_tool(tool::Tool::Move, &mut self.objects);
+            }
+
+            if ui.selectable_label(tscale, "S").clicked() {
+                state.switch_tool(tool::Tool::Scale { uniform: true }, &mut self.objects);
+            }
+
+            if ui.selectable_label(trotate, "R").clicked() {
+                state.switch_tool(tool::Tool::Rotate, &mut self.objects);
+            }
+        });
     }
 
     pub fn uid(&mut self) -> u32 {

@@ -11,13 +11,13 @@ impl PrepareView {
         let state = self.editor_state.get_or_insert_with(|| State::load(ctx));
         let mut messages = Vec::new();
 
-        egui::SidePanel::left("my_left_panel")
-            .resizable(false)
-            .show_separator_line(false)
+        egui::SidePanel::left("sidebar")
+            .resizable(true)
+            .default_width(150.0)
+            .width_range(150.0..=250.0)
+            .show_separator_line(true)
             .show(ctx, |ui| {
                 egui::ScrollArea::new([false, true]).show(ui, |ui| {
-                    ui.heading("Editor");
-
                     editor.sidebar(ui, state, &mut messages);
                 });
             });

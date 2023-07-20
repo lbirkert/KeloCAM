@@ -48,6 +48,11 @@ impl Selection {
         };
     }
 
+    pub fn clear(&mut self, objects: &mut [Object]) {
+        self.apply(objects);
+        self.selected.clear();
+    }
+
     pub fn contains(&self, id: &u32) -> bool {
         self.selected.contains(id)
     }
@@ -64,6 +69,7 @@ impl Selection {
         let applyable = self.to_applyable();
         for object in objects.iter_mut().filter(|o| self.selected.contains(&o.id)) {
             object.transform(&applyable);
+            object.snap_to_plate();
         }
 
         self.transformation.reset();
@@ -100,8 +106,10 @@ impl State {
     }
 
     pub fn switch_tool(&mut self, tool: tool::Tool, objects: &mut [Object]) {
-        self.selection.apply(objects);
-        self.selection.transformation = tool.selection_transformation();
+        if self.tool != tool {
+            self.selection.apply(objects);
+            self.selection.transformation = tool.selection_transformation();
+        }
         self.tool = tool;
     }
 }
@@ -127,7 +135,7 @@ impl Message {
                     editor.objects.remove(index);
                 }
                 Self::Select(id) => {
-                    let shift = ctx.input(|i| i.modifiers.contains(egui::Modifiers::SHIFT));
+                    let shift = ctx.input(|i| i.modifiers.shift);
 
                     if !shift
                         && state.selection.selected.len() == 1

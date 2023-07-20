@@ -1,12 +1,24 @@
 use super::path;
 use eframe::wgpu;
-use nalgebra::{Unit, Vector3};
+use nalgebra::Vector3;
 use std::sync::Arc;
 
 use super::{
     object::{self, Transformation},
     ray::Ray,
 };
+
+// Constants
+const LINE_THICKNESS: f32 = 0.01;
+
+const CIRCLE_RES: i32 = 20;
+
+const X_COLOR: [f32; 3] = [1.0, 0.0, 0.0];
+const X_SEL_COLOR: [f32; 3] = [1.0, 0.8, 0.8];
+const Y_COLOR: [f32; 3] = [0.0, 1.0, 0.0];
+const Y_SEL_COLOR: [f32; 3] = [0.8, 1.0, 0.8];
+const Z_COLOR: [f32; 3] = [0.0, 0.0, 1.0];
+const Z_SEL_COLOR: [f32; 3] = [0.8, 0.8, 1.0];
 
 #[derive(Debug)]
 pub enum Axis {
@@ -16,11 +28,11 @@ pub enum Axis {
 }
 
 impl Axis {
-    pub fn vector(&self) -> Unit<Vector3<f32>> {
+    pub fn vector(&self) -> Vector3<f32> {
         match self {
-            Axis::X => Vector3::x_axis(),
-            Axis::Y => Vector3::y_axis(),
-            Axis::Z => Vector3::z_axis(),
+            Axis::X => Vector3::new(1.0, 0.0, 0.0),
+            Axis::Y => Vector3::new(0.0, 1.0, 0.0),
+            Axis::Z => Vector3::new(0.0, 0.0, 1.0),
         }
     }
 }
@@ -31,9 +43,10 @@ pub enum Action {
     Hover { axis: Axis },
 }
 
+#[derive(PartialEq, Eq)]
 pub enum Tool {
     Move,
-    Scale,
+    Scale { uniform: bool },
     Rotate,
 }
 
@@ -43,47 +56,12 @@ impl Tool {
             Tool::Move => object::Transformation::Translate {
                 translate: Vector3::zeros(),
             },
-            Tool::Scale => object::Transformation::Scale {
+            Tool::Scale { .. } => object::Transformation::Scale {
                 scale: Vector3::from_element(1.0),
             },
             Tool::Rotate => object::Transformation::Rotate {
                 rotate: Vector3::zeros(),
             },
-        }
-    }
-
-    pub fn verticies(
-        &self,
-        verticies: &mut Vec<Vertex>,
-        path_indicies: &mut Vec<path::Index>,
-        path_verticies: &mut Vec<path::Vertex>,
-
-        offset: &Vector3<f32>,
-        scale: f32,
-        action: &Option<Action>,
-    ) {
-        match self {
-            Tool::Move => {
-                Self::move_tool(
-                    verticies,
-                    path_indicies,
-                    path_verticies,
-                    offset,
-                    scale,
-                    action,
-                );
-            }
-            Tool::Scale => {
-                Self::scale_tool(
-                    verticies,
-                    path_indicies,
-                    path_verticies,
-                    offset,
-                    scale,
-                    action,
-                );
-            }
-            _ => panic!(),
         }
     }
 
@@ -151,7 +129,23 @@ impl Tool {
         Self::triangle(verticies, origin, scale, -b, a, c, color);
     }
 
-    // TODO: rework this
+    fn colors(action: &Option<Action>) -> ([f32; 3], [f32; 3], [f32; 3]) {
+        let mut xcolor = X_COLOR;
+        let mut ycolor = Y_COLOR;
+        let mut zcolor = Z_COLOR;
+
+        match action {
+            Some(Action::Hover { axis }) | Some(Action::Transform { axis }) => match axis {
+                Axis::X => xcolor = X_SEL_COLOR,
+                Axis::Y => ycolor = Y_SEL_COLOR,
+                Axis::Z => zcolor = Z_SEL_COLOR,
+            },
+            _ => {}
+        };
+
+        (xcolor, ycolor, zcolor)
+    }
+
     fn move_tool(
         verticies: &mut Vec<Vertex>,
         path_indicies: &mut Vec<path::Index>,
@@ -160,20 +154,16 @@ impl Tool {
         scale: f32,
         action: &Option<Action>,
     ) {
-        let mut xcolor = [1.0, 0.0, 0.0];
-        let mut ycolor = [0.0, 1.0, 0.0];
-        let mut zcolor = [0.0, 0.0, 1.0];
+        let (xcolor, ycolor, zcolor) = Self::colors(action);
 
-        match action {
-            Some(Action::Hover { axis }) | Some(Action::Transform { axis }) => match axis {
-                Axis::X => xcolor = [1.0, 0.7, 0.7],
-                Axis::Y => ycolor = [0.7, 1.0, 0.7],
-                Axis::Z => zcolor = [0.7, 0.7, 1.0],
-            },
-            _ => {}
-        };
-
-        // X axis
+        // X-Axis
+        path::generate_open(
+            &[*origin, origin + Vector3::new(5.0 * scale, 0.0, 0.0)],
+            xcolor,
+            LINE_THICKNESS,
+            path_verticies,
+            path_indicies,
+        );
         Self::arrow(
             verticies,
             &(origin + Vector3::new(scale * 5.0, 0.0, 0.0)),
@@ -181,15 +171,15 @@ impl Tool {
             0.5 * scale,
             xcolor,
         );
-        path::Path {
-            points: vec![*origin, origin + Vector3::new(5.0 * scale, 0.0, 0.0)],
-            closed: false,
-            color: xcolor,
-            thickness: 5.0,
-        }
-        .append(path_verticies, path_indicies);
 
-        // Y axis
+        // Y-Axis
+        path::generate_open(
+            &[*origin, origin + Vector3::new(0.0, 5.0 * scale, 0.0)],
+            ycolor,
+            LINE_THICKNESS,
+            path_verticies,
+            path_indicies,
+        );
         Self::arrow(
             verticies,
             &(origin + Vector3::new(0.0, scale * 5.0, 0.0)),
@@ -197,15 +187,15 @@ impl Tool {
             0.5 * scale,
             ycolor,
         );
-        path::Path {
-            points: vec![*origin, origin + Vector3::new(0.0, 5.0 * scale, 0.0)],
-            closed: false,
-            color: ycolor,
-            thickness: 5.0,
-        }
-        .append(path_verticies, path_indicies);
 
-        // Z axis
+        // Z-Axis
+        path::generate_open(
+            &[*origin, origin + Vector3::new(0.0, 0.0, 5.0 * scale)],
+            zcolor,
+            LINE_THICKNESS,
+            path_verticies,
+            path_indicies,
+        );
         Self::arrow(
             verticies,
             &(origin + Vector3::new(0.0, 0.0, scale * 5.0)),
@@ -213,13 +203,6 @@ impl Tool {
             0.5 * scale,
             zcolor,
         );
-        path::Path {
-            points: vec![*origin, origin + Vector3::new(0.0, 0.0, 5.0 * scale)],
-            closed: false,
-            color: zcolor,
-            thickness: 5.0,
-        }
-        .append(path_verticies, path_indicies);
     }
 
     fn scale_tool(
@@ -230,80 +213,131 @@ impl Tool {
         scale: f32,
         action: &Option<Action>,
     ) {
-        let mut xcolor = [1.0, 0.0, 0.0];
-        let mut ycolor = [0.0, 1.0, 0.0];
-        let mut zcolor = [0.0, 0.0, 1.0];
+        let (xcolor, ycolor, zcolor) = Self::colors(action);
 
-        match action {
-            Some(Action::Hover { axis }) | Some(Action::Transform { axis }) => match axis {
-                Axis::X => xcolor = [1.0, 0.7, 0.7],
-                Axis::Y => ycolor = [0.7, 1.0, 0.7],
-                Axis::Z => zcolor = [0.7, 0.7, 1.0],
-            },
-            _ => {}
-        };
-
+        // Center cube
         Self::cube(verticies, origin, scale, [1.0, 1.0, 1.0]);
 
-        // X axis
+        // X-Axis
+        path::generate_open(
+            &[*origin, origin + Vector3::new(5.0 * scale, 0.0, 0.0)],
+            xcolor,
+            LINE_THICKNESS,
+            path_verticies,
+            path_indicies,
+        );
         Self::cube(
             verticies,
             &(origin + Vector3::new(scale * 5.0, 0.0, 0.0)),
             scale,
             xcolor,
         );
-        path::Path {
-            points: vec![*origin, origin + Vector3::new(5.0 * scale, 0.0, 0.0)],
-            closed: false,
-            color: xcolor,
-            thickness: 5.0,
-        }
-        .append(path_verticies, path_indicies);
 
-        // Y axis
+        // Y-Axis
+        path::generate_open(
+            &[*origin, origin + Vector3::new(0.0, 5.0 * scale, 0.0)],
+            ycolor,
+            LINE_THICKNESS,
+            path_verticies,
+            path_indicies,
+        );
         Self::cube(
             verticies,
             &(origin + Vector3::new(0.0, scale * 5.0, 0.0)),
             scale,
             ycolor,
         );
-        path::Path {
-            points: vec![*origin, origin + Vector3::new(0.0, 5.0 * scale, 0.0)],
-            closed: false,
-            color: ycolor,
-            thickness: 5.0,
-        }
-        .append(path_verticies, path_indicies);
 
-        // Z axis
+        // Z-Axis
+        path::generate_open(
+            &[*origin, origin + Vector3::new(0.0, 0.0, 5.0 * scale)],
+            zcolor,
+            LINE_THICKNESS,
+            path_verticies,
+            path_indicies,
+        );
         Self::cube(
             verticies,
             &(origin + Vector3::new(0.0, 0.0, scale * 5.0)),
             scale,
             zcolor,
         );
-        path::Path {
-            points: vec![*origin, origin + Vector3::new(0.0, 0.0, 5.0 * scale)],
-            closed: false,
-            color: zcolor,
-            thickness: 5.0,
-        }
-        .append(path_verticies, path_indicies);
     }
 
-    pub fn msaxis(origin: &Vector3<f32>, camera_ray: &Ray, scale: f32) -> Option<Axis> {
-        Self::intersect_axis(origin, camera_ray, scale, &Vector3::x_axis()).map_or_else(
-            || {
-                Self::intersect_axis(origin, camera_ray, scale, &Vector3::y_axis()).map_or_else(
-                    || {
-                        Self::intersect_axis(origin, camera_ray, scale, &Vector3::z_axis())
-                            .map(|_| Axis::Z)
-                    },
-                    |_| Some(Axis::Y),
-                )
-            },
-            |_| Some(Axis::X),
-        )
+    fn rotate_tool(
+        verticies: &mut Vec<Vertex>,
+        path_indicies: &mut Vec<path::Index>,
+        path_verticies: &mut Vec<path::Vertex>,
+        origin: &Vector3<f32>,
+        scale: f32,
+        action: &Option<Action>,
+    ) {
+        let (xcolor, ycolor, zcolor) = Self::colors(action);
+
+        let mut vx = Vec::new();
+        let mut vy = Vec::new();
+        let mut vz = Vec::new();
+        for i in 0..CIRCLE_RES {
+            let angle = (i as f32 / CIRCLE_RES as f32) * std::f32::consts::TAU;
+            let (mut sin, mut cos) = angle.sin_cos();
+            sin *= scale * 5.0;
+            cos *= scale * 5.0;
+
+            vx.push(Vector3::new(0.0, sin, cos) + origin);
+            vy.push(Vector3::new(sin, 0.0, cos) + origin);
+            vz.push(Vector3::new(sin, cos, 0.0) + origin);
+        }
+
+        // X-Axis
+        path::generate_closed(&vx, xcolor, LINE_THICKNESS, path_verticies, path_indicies);
+        Self::arrow(
+            verticies,
+            &(origin + Vector3::new(0.0, 0.4 * scale, 4.9 * scale)),
+            &Vector3::new(0.0, 1.0, 0.0),
+            0.5 * scale,
+            xcolor,
+        );
+        Self::arrow(
+            verticies,
+            &(origin + Vector3::new(0.0, -0.4 * scale, 4.9 * scale)),
+            &Vector3::new(0.0, -1.0, 0.0),
+            0.5 * scale,
+            xcolor,
+        );
+
+        // Y-Axis
+        path::generate_closed(&vy, ycolor, LINE_THICKNESS, path_verticies, path_indicies);
+        Self::arrow(
+            verticies,
+            &(origin + Vector3::new(4.9 * scale, 0.0, 0.4 * scale)),
+            &Vector3::new(0.0, 0.0, 1.0),
+            0.5 * scale,
+            ycolor,
+        );
+        Self::arrow(
+            verticies,
+            &(origin + Vector3::new(4.9 * scale, 0.0, -0.4 * scale)),
+            &Vector3::new(0.0, 0.0, -1.0),
+            0.5 * scale,
+            ycolor,
+        );
+
+        // Z-Axis
+        path::generate_closed(&vz, zcolor, LINE_THICKNESS, path_verticies, path_indicies);
+        Self::arrow(
+            verticies,
+            &(origin + Vector3::new(0.4 * scale, 4.9 * scale, 0.0)),
+            &Vector3::new(1.0, 0.0, 0.0),
+            0.5 * scale,
+            zcolor,
+        );
+        Self::arrow(
+            verticies,
+            &(origin + Vector3::new(-0.4 * scale, 4.9 * scale, 0.0)),
+            &Vector3::new(-1.0, 0.0, 0.0),
+            0.5 * scale,
+            zcolor,
+        );
     }
 
     fn intersect_axis(
@@ -323,8 +357,91 @@ impl Tool {
 
     pub fn intersect(&self, origin: &Vector3<f32>, camera_ray: &Ray, scale: f32) -> Option<Axis> {
         match self {
-            Tool::Move | Tool::Scale => Self::msaxis(origin, camera_ray, scale),
-            _ => panic!(),
+            Tool::Move | Tool::Scale { .. } => {
+                let mut axis = None;
+
+                if Self::intersect_axis(origin, camera_ray, scale, &Vector3::x_axis()).is_some() {
+                    axis = Some(Axis::X);
+                }
+                if Self::intersect_axis(origin, camera_ray, scale, &Vector3::y_axis()).is_some() {
+                    axis = Some(Axis::Y);
+                }
+                if Self::intersect_axis(origin, camera_ray, scale, &Vector3::z_axis()).is_some() {
+                    axis = Some(Axis::Z);
+                }
+
+                axis
+            }
+            Tool::Rotate => {
+                const TOLLERANCE: f32 = 1.0;
+                let radius = ((5.0 - TOLLERANCE) * scale)..((5.0 + TOLLERANCE) * scale);
+
+                let mut axis = None;
+                let mut dist = std::f32::INFINITY;
+
+                if let Some(p) = camera_ray.circle_intersect(origin, &Vector3::x_axis(), &radius) {
+                    dist = (p - camera_ray.origin).magnitude_squared();
+                    axis = Some(Axis::X);
+                }
+                if let Some(p) = camera_ray.circle_intersect(origin, &Vector3::y_axis(), &radius) {
+                    let pdist = (p - camera_ray.origin).magnitude_squared();
+                    if pdist < dist {
+                        axis = Some(Axis::Y);
+                        dist = pdist;
+                    }
+                }
+                if let Some(p) = camera_ray.circle_intersect(origin, &Vector3::z_axis(), &radius) {
+                    if (p - camera_ray.origin).magnitude_squared() < dist {
+                        axis = Some(Axis::Z);
+                    }
+                }
+
+                axis
+            }
+        }
+    }
+
+    pub fn generate(
+        &self,
+        verticies: &mut Vec<Vertex>,
+        path_indicies: &mut Vec<path::Index>,
+        path_verticies: &mut Vec<path::Vertex>,
+
+        offset: &Vector3<f32>,
+        scale: f32,
+        action: &Option<Action>,
+    ) {
+        match self {
+            Tool::Move => {
+                Self::move_tool(
+                    verticies,
+                    path_indicies,
+                    path_verticies,
+                    offset,
+                    scale,
+                    action,
+                );
+            }
+            Tool::Scale { .. } => {
+                Self::scale_tool(
+                    verticies,
+                    path_indicies,
+                    path_verticies,
+                    offset,
+                    scale,
+                    action,
+                );
+            }
+            Tool::Rotate => {
+                Self::rotate_tool(
+                    verticies,
+                    path_indicies,
+                    path_verticies,
+                    offset,
+                    scale,
+                    action,
+                );
+            }
         }
     }
 }

@@ -28,15 +28,17 @@ fn vs_main(@builtin(vertex_index) v_idx: u32, in: VertexIn) -> VertexOut {
 
     var out: VertexOut;
 
+    let aspect = vec2<f32>(camera.dimensions.x / camera.dimensions.y, 1.0);
+
     var oa = vec4<f32>(in.before.xzy, 1.0) * camera.view_proj;
     oa /= abs(oa.w);
-    let pa = oa.xy * camera.dimensions.xy;
+    let pa = oa.xy * aspect;
     var ob = vec4<f32>(in.pos.xzy, 1.0) * camera.view_proj;
     ob /= abs(ob.w);
-    let pb = ob.xy * camera.dimensions.xy;
+    let pb = ob.xy * aspect;
     var oc = vec4<f32>(in.after.xzy, 1.0) * camera.view_proj;
     oc /= abs(oc.w);
-    let pc = oc.xy * camera.dimensions.xy;
+    let pc = oc.xy * aspect;
 
     let n1 = normalize(vec2<f32>(pa.y - pb.y, pb.x - pa.x));
     let n2 = normalize(vec2<f32>(pb.y - pc.y, pc.x - pb.x));
@@ -64,7 +66,7 @@ fn vs_main(@builtin(vertex_index) v_idx: u32, in: VertexIn) -> VertexOut {
     out.color = in.color;
 
     // TODO: depth test
-    out.pos = vec4<f32>((pb + offset * in.thickness / 2.0) / camera.dimensions.xy, 0.0, 1.0);
+    out.pos = vec4<f32>((pb + offset * in.thickness / 2.0) / aspect, 0.0, 1.0);
 
     return out;
 }
