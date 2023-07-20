@@ -372,7 +372,7 @@ impl Editor {
         state: &mut state::State,
         messages: &mut Vec<state::Message>,
     ) {
-        if self.objects.len() == 0 {
+        if self.objects.is_empty() {
             ui.label("Click on File > Open to import a model");
         }
 
