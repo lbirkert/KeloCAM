@@ -21,3 +21,7 @@
 4. Preview Toolpath before executing.
 5. Monitor the CNC process.
 6. Provide tools for easy setup of the CNC process.
+
+<hr>
+
+&copy; Lucas Birkert & Contributors
