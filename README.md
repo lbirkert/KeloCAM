@@ -1,6 +1,9 @@
 [![dependency status](https://deps.rs/repo/github/GamePowerX/KeloCAM/status.svg)](https://deps.rs/repo/github/GamePowerX/KeloCAM)
 [![Build Status](https://github.com/GamePowerX/KeloCAM/workflows/CI/badge.svg)](https://github.com/GamePowerX/KeloCAM/actions?workflow=CI)
 
+<!--
+    This is a placeholder, we will merge the logo and the KeloCAM name into a single banner image later.
+!-->
 <table>
     <td>
       <a href="https://kelocam.org"><img src="logo.png" alt="Logo" height="160px"></a></td>
