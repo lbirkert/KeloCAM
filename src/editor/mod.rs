@@ -261,9 +261,9 @@ impl Editor {
         // Generate object verticies
         for object in self.objects.iter_mut() {
             if state.selection.contains(&object.id) {
-                renderer::object::generate(&object, [1.0, 0.0, 0.0], &mut object_verticies);
+                renderer::object::generate(object, [1.0, 0.0, 0.0], &mut object_verticies);
             } else {
-                renderer::object::generate(&object, [1.0, 1.0, 1.0], &mut object_verticies);
+                renderer::object::generate(object, [1.0, 1.0, 1.0], &mut object_verticies);
             }
 
             for points in object

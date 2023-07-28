@@ -80,14 +80,11 @@ impl Mesh {
                 None
             };
 
-            let segment = if pa.is_some() && pb.is_some() {
-                (pa.unwrap(), pb.unwrap())
-            } else if pb.is_some() && pc.is_some() {
-                (pb.unwrap(), pc.unwrap())
-            } else if pc.is_some() && pa.is_some() {
-                (pc.unwrap(), pa.unwrap())
-            } else {
-                continue;
+            let segment = match (pa, pb, pc) {
+                (Some(pa), Some(pb), _) => (pa, pb),
+                (_, Some(pb), Some(pc)) => (pb, pc),
+                (Some(pa), _, Some(pc)) => (pc, pa),
+                _ => continue,
             };
 
             const EPSILON: f32 = 1e-9;
@@ -125,8 +122,8 @@ impl Mesh {
             );
 
             let mut ai = None;
-            for i in 0..points.len() {
-                if (a - points[i]).magnitude_squared() < EPSILON {
+            for (i, point) in points.iter().enumerate() {
+                if (a - point).magnitude_squared() < EPSILON {
                     ai = Some(i);
                     break;
                 }
@@ -139,8 +136,8 @@ impl Mesh {
             });
 
             let mut bi = None;
-            for i in 0..points.len() {
-                if (b - points[i]).magnitude_squared() < EPSILON {
+            for (i, point) in points.iter().enumerate() {
+                if (b - point).magnitude_squared() < EPSILON {
                     bi = Some(i);
                     break;
                 }
@@ -168,8 +165,8 @@ impl Mesh {
                 paths.push(Path2::new(path));
 
                 let mut found = None;
-                for i in 0..indicies.len() {
-                    if !indicies[i].1 {
+                for (i, index) in indicies.iter().enumerate() {
+                    if !index.1 {
                         found = Some(i);
                         break;
                     }

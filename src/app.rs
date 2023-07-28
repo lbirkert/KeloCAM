@@ -87,9 +87,11 @@ impl eframe::App for KeloApp {
 
         // The central panel the region left after adding TopPanel's and SidePanel's
 
-        match self.view {
-            View::Prepare => self.prepare.show(ctx, &mut self.editor),
-            _ => {}
-        };
+        //match self.view {
+        //    View::Prepare => self.prepare.show(ctx, &mut self.editor),
+        //    _ => {}
+        //};
+
+        self.prepare.show(ctx, &mut self.editor)
     }
 }

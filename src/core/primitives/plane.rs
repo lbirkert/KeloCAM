@@ -32,7 +32,7 @@ impl Plane {
             return None;
         }
 
-        let t = (origin - ray.origin).dot(&normal) / a;
+        let t = (origin - ray.origin).dot(normal) / a;
 
         // Plane is behind ray
         if t < 0.0 {

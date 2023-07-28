@@ -34,7 +34,7 @@ impl Tool {
             &ortho,
             &axis.vector.scale(scale),
             &normal,
-            &ray,
+            ray,
         )
     }
 
@@ -43,13 +43,13 @@ impl Tool {
             Tool::Move | Tool::Scale { .. } => {
                 let mut axis = None;
 
-                if Self::intersect_axis(&origin, &Axis::X, scale, ray).is_some() {
+                if Self::intersect_axis(origin, &Axis::X, scale, ray).is_some() {
                     axis = Some(Axis::X);
                 }
-                if Self::intersect_axis(&origin, &Axis::Y, scale, ray).is_some() {
+                if Self::intersect_axis(origin, &Axis::Y, scale, ray).is_some() {
                     axis = Some(Axis::Y);
                 }
-                if Self::intersect_axis(&origin, &Axis::Z, scale, ray).is_some() {
+                if Self::intersect_axis(origin, &Axis::Z, scale, ray).is_some() {
                     axis = Some(Axis::Z);
                 }
 

@@ -50,6 +50,12 @@ impl Selection {
     }
 }
 
+impl Default for Selection {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub struct State {
     pub group_icon: egui::TextureHandle,
     pub object_icon: egui::TextureHandle,
