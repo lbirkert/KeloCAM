@@ -66,7 +66,7 @@ fn vs_main(@builtin(vertex_index) v_idx: u32, in: VertexIn) -> VertexOut {
     out.color = in.color;
 
     // TODO: depth test
-    out.pos = vec4<f32>((pb + offset * in.thickness / 2.0) / aspect, 0.0, 1.0);
+    out.pos = vec4<f32>((pb + offset * in.thickness / 2.0) / aspect, ob.z, 1.0);
 
     return out;
 }

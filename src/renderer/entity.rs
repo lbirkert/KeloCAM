@@ -1,9 +1,6 @@
 use eframe::wgpu;
-use egui::vec2;
-use nalgebra::Vector3;
+use nalgebra::{UnitVector3, Vector3};
 use std::sync::Arc;
-
-use super::state;
 
 pub const VERTEX_SIZE: usize = std::mem::size_of::<Vertex>();
 pub const VERTEX_BUFFER_LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::VertexBufferLayout {
@@ -11,14 +8,14 @@ pub const VERTEX_BUFFER_LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::Vertex
     attributes: &[
         // Position
         wgpu::VertexAttribute {
-            format: wgpu::VertexFormat::Float32x2,
+            format: wgpu::VertexFormat::Float32x3,
             offset: 0,
             shader_location: 0,
         },
         // Normal vector
         wgpu::VertexAttribute {
             format: wgpu::VertexFormat::Float32x3,
-            offset: 4 * 2,
+            offset: 4 * 3,
             shader_location: 1,
         },
     ],
@@ -28,60 +25,77 @@ pub const VERTEX_BUFFER_LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::Vertex
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod)]
 pub struct Vertex {
-    pos: [f32; 2],
+    pos: [f32; 3],
     color: [f32; 3],
 }
 
-pub enum Segment {
-    /// Define an arc.
-    Arc { radius: f32, start: f32, end: f32 },
-    /// Define a line from the last position to this position.
-    Line(Vector3<f32>),
-    /// Define a point which can be used to mark the start position of any path.
-    Point(Vector3<f32>),
-}
+pub fn generate_arrow(
+    scale: f32,
+    origin: &Vector3<f32>,
+    direction: &UnitVector3<f32>,
+    color: [f32; 3],
+    verticies: &mut Vec<Vertex>,
+) {
+    let mut na = direction.cross(&Vector3::new(-direction.z, direction.y, direction.x));
+    na.normalize_mut();
+    let mut nb = direction.cross(&na);
+    nb.normalize_mut();
 
-impl Segment {
-    pub fn translate(&mut self, delta: Vector3<f32>) {
-        match self {
-            Segment::Line(mut pos) => pos += delta,
-            Segment::Point(mut pos) => pos += delta,
-            _ => {}
-        }
-    }
-}
+    na.scale_mut(scale / 2.0);
+    nb.scale_mut(scale / 2.0);
+    let nc = direction.scale(scale);
 
-pub struct Toolpath {
-    pub segments: Vec<Segment>,
-    pub id: u32,
-    pub name: String,
-}
+    verticies.push(Vertex {
+        pos: (origin + na).into(),
+        color,
+    });
+    verticies.push(Vertex {
+        pos: (origin + nb).into(),
+        color,
+    });
+    verticies.push(Vertex {
+        pos: (origin + nc).into(),
+        color,
+    });
 
-impl Toolpath {
-    pub fn ui(
-        &mut self,
-        ui: &mut egui::Ui,
-        state: &mut state::State,
-        messages: &mut Vec<state::Message>,
-    ) {
-        ui.horizontal(|ui| {
-            ui.add(egui::Image::new(&state.object_icon, vec2(16.0, 16.0)));
+    verticies.push(Vertex {
+        pos: (origin + nb).into(),
+        color,
+    });
+    verticies.push(Vertex {
+        pos: (origin - na).into(),
+        color,
+    });
+    verticies.push(Vertex {
+        pos: (origin + nc).into(),
+        color,
+    });
 
-            let response =
-                ui.selectable_label(state.selection.contains(&self.id), self.name.as_str());
+    verticies.push(Vertex {
+        pos: (origin - na).into(),
+        color,
+    });
+    verticies.push(Vertex {
+        pos: (origin - nb).into(),
+        color,
+    });
+    verticies.push(Vertex {
+        pos: (origin + nc).into(),
+        color,
+    });
 
-            if response.clicked() {
-                messages.push(state::Message::Select(self.id));
-            }
-
-            response.context_menu(|ui| {
-                if ui.button("Delete").clicked() {
-                    ui.close_menu();
-                    messages.push(state::Message::Delete(self.id));
-                }
-            });
-        });
-    }
+    verticies.push(Vertex {
+        pos: (origin - nb).into(),
+        color,
+    });
+    verticies.push(Vertex {
+        pos: (origin + na).into(),
+        color,
+    });
+    verticies.push(Vertex {
+        pos: (origin + nc).into(),
+        color,
+    });
 }
 
 pub struct Renderer {
@@ -93,10 +107,11 @@ impl Renderer {
     pub fn new(
         device: &Arc<wgpu::Device>,
         format: wgpu::TextureFormat,
+        depth_enabled: bool,
         camera_bind_group_layout: &wgpu::BindGroupLayout,
     ) -> Self {
         let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("toolpath"),
+            label: Some("entity"),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             size: 100000 * VERTEX_SIZE as u64,
             mapped_at_creation: false,
@@ -104,23 +119,23 @@ impl Renderer {
 
         let color_target = wgpu::ColorTargetState {
             format,
-            blend: None,
+            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
             write_mask: wgpu::ColorWrites::ALL,
         };
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("toolpath"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("./shaders/object.wgsl").into()),
+            label: Some("entity"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("./shaders/entity.wgsl").into()),
         });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("grid"),
+            label: Some("entity"),
             bind_group_layouts: &[camera_bind_group_layout],
             push_constant_ranges: &[],
         });
 
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("object"),
+            label: Some("entity"),
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
@@ -136,7 +151,11 @@ impl Renderer {
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth32Float,
                 depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
+                depth_compare: if depth_enabled {
+                    wgpu::CompareFunction::Less
+                } else {
+                    wgpu::CompareFunction::Always
+                },
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             }),

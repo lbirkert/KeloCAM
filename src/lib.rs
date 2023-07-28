@@ -3,10 +3,10 @@
 mod app;
 pub use app::KeloApp;
 
-pub mod device;
-pub mod view;
-
+pub mod core;
 pub mod editor;
+pub mod renderer;
+pub mod view;
 
 #[macro_export]
 macro_rules! icon {

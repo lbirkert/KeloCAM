@@ -43,7 +43,7 @@ pub const VERTEX_BUFFER_LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::Vertex
 };
 
 #[repr(C)]
-#[derive(Debug, Clone, Copy, bytemuck::Zeroable, bytemuck::Pod)]
+#[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod)]
 pub struct Vertex {
     before: [f32; 3],
     pos: [f32; 3],
@@ -52,7 +52,7 @@ pub struct Vertex {
     thickness: f32,
 }
 
-/// Generates verticies for a closed path
+/// Generates verticies for a closed path.
 pub fn generate_closed(
     points: &[Vector3<f32>],
     color: [f32; 3],
@@ -116,7 +116,7 @@ pub fn generate_closed(
     }
 }
 
-/// Generates verticies for an open path
+/// Generates verticies for an open path.
 pub fn generate_open(
     points: &[Vector3<f32>],
     color: [f32; 3],
@@ -206,18 +206,19 @@ impl Renderer {
     pub fn new(
         device: &Arc<wgpu::Device>,
         format: wgpu::TextureFormat,
+        depth_enabled: bool,
         camera_bind_group_layout: &wgpu::BindGroupLayout,
     ) -> Self {
         let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("path"),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            size: 2000 * VERTEX_SIZE as u64,
+            size: 20000 * VERTEX_SIZE as u64,
             mapped_at_creation: false,
         });
         let index_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("path"),
             usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
-            size: 4000 * std::mem::size_of::<u32>() as u64,
+            size: 40000 * std::mem::size_of::<u32>() as u64,
             mapped_at_creation: false,
         });
 
@@ -255,7 +256,11 @@ impl Renderer {
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth32Float,
                 depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
+                depth_compare: if depth_enabled {
+                    wgpu::CompareFunction::Less
+                } else {
+                    wgpu::CompareFunction::Always
+                },
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             }),

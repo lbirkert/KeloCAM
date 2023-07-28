@@ -4,52 +4,40 @@ use nalgebra::Vector3;
 
 use crate::icon;
 
-use super::{
-    object::{ApplyableTransformation, Object, Transformation},
-    tool, Editor,
-};
+use super::{object::Object, tool, Editor};
 
 /// Represents a selection
 pub struct Selection {
     selected: HashSet<u32>,
 
-    pub transformation: Transformation,
-    pub pre_inf: Vector3<f32>,
-    pub pre_sup: Vector3<f32>,
+    pub inf: Vector3<f32>,
+    pub sup: Vector3<f32>,
     pub origin: Vector3<f32>,
 }
 
 impl Selection {
-    pub fn new(tool: &tool::Tool) -> Self {
+    pub fn new() -> Self {
         Self {
             selected: HashSet::new(),
-
-            transformation: tool.selection_transformation(),
             origin: Vector3::zeros(),
-            pre_inf: Vector3::zeros(),
-            pre_sup: Vector3::zeros(),
+            inf: Vector3::zeros(),
+            sup: Vector3::zeros(),
         }
     }
 
     pub fn update_origin(&mut self, objects: &[Object]) {
-        self.pre_inf = Vector3::from_element(std::f32::INFINITY);
-        self.pre_sup = Vector3::from_element(std::f32::NEG_INFINITY);
+        self.inf = Vector3::from_element(std::f32::INFINITY);
+        self.sup = Vector3::from_element(std::f32::NEG_INFINITY);
         for object in objects.iter().filter(|o| self.selected.contains(&o.id)) {
-            let (oinf, osup) = object.inf_sup();
-            self.pre_inf = self.pre_inf.inf(&oinf);
-            self.pre_sup = self.pre_sup.sup(&osup);
+            let (oinf, osup) = object.mesh.inf_sup();
+            self.inf = self.inf.inf(&oinf);
+            self.sup = self.sup.sup(&osup);
         }
 
-        let pre_origin = (self.pre_sup + self.pre_inf).scale(0.5);
-
-        self.origin = match self.transformation {
-            Transformation::Scale { .. } | Transformation::Rotate { .. } => pre_origin,
-            Transformation::Translate { translate } => pre_origin + translate,
-        };
+        self.origin = (self.inf + self.sup).scale(0.5);
     }
 
-    pub fn clear(&mut self, objects: &mut [Object]) {
-        self.apply(objects);
+    pub fn clear(&mut self) {
         self.selected.clear();
     }
 
@@ -59,20 +47,6 @@ impl Selection {
 
     pub fn valid(&self) -> bool {
         !self.selected.is_empty()
-    }
-
-    pub fn to_applyable(&self) -> ApplyableTransformation {
-        self.transformation.to_applyable(self.origin)
-    }
-
-    pub fn apply(&mut self, objects: &mut [Object]) {
-        let applyable = self.to_applyable();
-        for object in objects.iter_mut().filter(|o| self.selected.contains(&o.id)) {
-            object.transform(&applyable);
-            object.snap_to_plate();
-        }
-
-        self.transformation.reset();
     }
 }
 
@@ -100,17 +74,9 @@ impl State {
             object_icon,
             toolpath_icon,
             action: None,
-            selection: Selection::new(&tool),
+            selection: Selection::new(),
             tool,
         }
-    }
-
-    pub fn switch_tool(&mut self, tool: tool::Tool, objects: &mut [Object]) {
-        if self.tool != tool {
-            self.selection.apply(objects);
-            self.selection.transformation = tool.selection_transformation();
-        }
-        self.tool = tool;
     }
 }
 
@@ -126,8 +92,6 @@ impl Message {
         messages: &[Message],
         ctx: &egui::Context,
     ) {
-        let mut applied = false;
-
         for message in messages {
             match message {
                 Self::Delete(id) => {
@@ -142,11 +106,6 @@ impl Message {
                         && state.selection.selected.contains(id)
                     {
                         continue;
-                    }
-
-                    if !applied {
-                        applied = true;
-                        state.selection.apply(&mut editor.objects);
                     }
 
                     if !shift {

@@ -9,11 +9,7 @@ use eframe::wgpu;
 
 use eframe::wgpu::util::DeviceExt;
 
-use super::ray::Ray;
-
-// We have got 2 seperate structs for the Camera to seperate
-// the actual state of the camera which will sit in the frontend
-// and the wgpu state required to perform paint calls.
+use crate::core::primitives::Ray;
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod)]
@@ -76,7 +72,6 @@ impl Uniform {
     }
 }
 
-#[derive(Debug)]
 pub enum Projection {
     Perspective {
         aspect: f32,
@@ -140,7 +135,6 @@ impl Projection {
     }
 }
 
-#[derive(Debug)]
 pub struct Camera {
     pub position: Vector3<f32>,
     pub yaw: f32,

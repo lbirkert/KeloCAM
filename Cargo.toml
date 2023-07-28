@@ -16,7 +16,7 @@ serialport = "4.2.0"
 stl = "0.2.1"
 bytemuck = { version = "1.13.1", features = ["derive"] }
 tracing-subscriber = "0.3"
-nalgebra = "0.32.2"
+nalgebra = "0.32.3"
 nalgebra-glm = "0.18.0"
 rfd = "0.11.4"
 futures = "0.3.28"

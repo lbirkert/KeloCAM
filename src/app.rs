@@ -1,13 +1,14 @@
 use pollster::FutureExt;
 
 use rfd::{AsyncFileDialog, FileHandle};
-use std::future::Future;
 use std::pin::Pin;
 use std::task::Poll;
+use std::{future::Future, io::Cursor};
 
 use crate::{
+    core::primitives::Mesh,
     editor::{object::Object, Editor},
-    view::{monitor::MonitorView, prepare::PrepareView, View},
+    view::{prepare::PrepareView, View},
 };
 
 pub struct KeloApp {
@@ -15,7 +16,6 @@ pub struct KeloApp {
 
     view: View,
 
-    monitor: MonitorView,
     prepare: PrepareView,
 
     editor: Editor,
@@ -32,7 +32,6 @@ impl KeloApp {
         Self {
             file_dialog: None,
             view: View::Prepare,
-            monitor: MonitorView::default(),
             prepare: PrepareView::default(),
             editor,
         }
@@ -47,13 +46,13 @@ impl eframe::App for KeloApp {
 
                 if let Some(handle) = handle {
                     async {
-                        if let Ok(object) = Object::from_stl(
-                            handle.file_name(),
-                            handle.read().await,
-                            &mut self.editor.id_counter,
-                        ) {
-                            self.editor.objects.push(object);
-                            self.editor.object_changed = true;
+                        if let Ok(mesh) = Mesh::from_stl(&mut Cursor::new(&handle.read().await)) {
+                            self.editor.objects.push(Object::new(
+                                mesh,
+                                handle.file_name(),
+                                self.editor.id_counter,
+                            ));
+                            self.editor.id_counter += 1;
                         }
                     }
                     .block_on();
@@ -79,9 +78,6 @@ impl eframe::App for KeloApp {
                     }
                 });
                 ui.menu_button("View", |ui| {
-                    if ui.button("Monitor").clicked() {
-                        self.view = View::Monitor;
-                    }
                     if ui.button("Prepare").clicked() {
                         self.view = View::Prepare;
                     }
@@ -92,7 +88,6 @@ impl eframe::App for KeloApp {
         // The central panel the region left after adding TopPanel's and SidePanel's
 
         match self.view {
-            View::Monitor => self.monitor.show(ctx),
             View::Prepare => self.prepare.show(ctx, &mut self.editor),
             _ => {}
         };
