@@ -2,10 +2,9 @@ use std::io::Cursor;
 
 use nalgebra::{Matrix4, UnitVector3, Vector2, Vector3};
 
-use crate::renderer;
+use super::{Path2, Ray, Trans, Triangle};
 
-use super::{path::Path2, ray::Ray, triangle::Triangle};
-
+#[derive(Clone)]
 pub struct Mesh {
     pub triangles: Vec<Triangle>,
 }
@@ -46,16 +45,12 @@ impl Mesh {
     }
 
     /// Z-Slice a model. Creates a path representing the outline of this Mesh at this z height.
-    pub fn z_slice(&self, z: f32, rv: &mut Vec<renderer::entity::Vertex>) -> Vec<Path2> {
-        Self::z_slice_raw(&self.triangles, z, rv)
+    pub fn z_slice(&self, z: f32) -> Vec<Path2> {
+        Self::z_slice_raw(&self.triangles, z)
     }
 
     /// Z-Slice a model. Creates a path representing the outline of this Mesh at this z height.
-    pub fn z_slice_raw(
-        triangles: &[Triangle],
-        z: f32,
-        rv: &mut Vec<renderer::entity::Vertex>,
-    ) -> Vec<Path2> {
+    pub fn z_slice_raw(triangles: &[Triangle], z: f32) -> Vec<Path2> {
         // Used for connecting the polygons properly
         let mut points: Vec<Vector2<f32>> = Vec::new();
         let mut indicies: Vec<(usize, bool)> = Vec::new();
@@ -105,21 +100,6 @@ impl Mesh {
                 b = segment.0;
                 a = segment.1;
             }
-
-            renderer::entity::generate_arrow(
-                0.1,
-                &Vector3::new(a.x, a.y, z),
-                &Vector3::z_axis(),
-                [1.0, 0.0, 0.0],
-                rv,
-            );
-            renderer::entity::generate_arrow(
-                0.1,
-                &Vector3::new(b.x, b.y, z),
-                &Vector3::z_axis(),
-                [0.0, 1.0, 0.0],
-                rv,
-            );
 
             let mut ai = None;
             for (i, point) in points.iter().enumerate() {
@@ -235,6 +215,16 @@ impl Mesh {
             triangle.b = mat.transform_vector(&triangle.b);
             triangle.c = mat.transform_vector(&triangle.c);
             triangle.normal = UnitVector3::new_unchecked(mat.transform_vector(&triangle.normal));
+        }
+    }
+
+    /// Apply a transformation.
+    pub fn apply(&mut self, trans: &Trans) {
+        match trans {
+            Trans::Scale(delta) => self.scale(*delta),
+            Trans::ScaleNonUniformly(delta) => self.scale_non_uniformly(delta),
+            Trans::Rotate(delta) => self.rotate(delta),
+            Trans::Translate(delta) => self.translate(delta),
         }
     }
 

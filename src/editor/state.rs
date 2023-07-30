@@ -1,14 +1,24 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 
 use nalgebra::Vector3;
 
-use crate::icon;
+use crate::{
+    core::primitives::{Mesh, Trans},
+    icon,
+};
 
-use super::{object::Object, tool, Editor};
+use super::{
+    object::Object,
+    tool::{Action, Tool},
+    Editor,
+};
 
 /// Represents a selection
 pub struct Selection {
-    selected: HashSet<u32>,
+    // Contains the meshes before the current transformation of the selected objects.
+    selected: HashMap<u32, Mesh>,
+    // The transformation that is to be applied.
+    pub trans: Trans,
 
     pub inf: Vector3<f32>,
     pub sup: Vector3<f32>,
@@ -16,19 +26,20 @@ pub struct Selection {
 }
 
 impl Selection {
-    pub fn new() -> Self {
+    pub fn new(trans: Trans) -> Self {
         Self {
-            selected: HashSet::new(),
+            selected: HashMap::new(),
             origin: Vector3::zeros(),
             inf: Vector3::zeros(),
             sup: Vector3::zeros(),
+            trans,
         }
     }
 
     pub fn update_origin(&mut self, objects: &[Object]) {
         self.inf = Vector3::from_element(std::f32::INFINITY);
         self.sup = Vector3::from_element(std::f32::NEG_INFINITY);
-        for object in objects.iter().filter(|o| self.selected.contains(&o.id)) {
+        for object in objects.iter().filter(|o| self.selected.contains_key(&o.id)) {
             let (oinf, osup) = object.mesh.inf_sup();
             self.inf = self.inf.inf(&oinf);
             self.sup = self.sup.sup(&osup);
@@ -42,17 +53,29 @@ impl Selection {
     }
 
     pub fn contains(&self, id: &u32) -> bool {
-        self.selected.contains(id)
+        self.selected.contains_key(id)
     }
 
     pub fn valid(&self) -> bool {
         !self.selected.is_empty()
     }
-}
 
-impl Default for Selection {
-    fn default() -> Self {
-        Self::new()
+    pub fn push_transformation(&mut self, objects: &mut [Object]) {
+        for object in objects.iter_mut() {
+            object.trans.push(self.trans.clone());
+            self.selected
+                .entry(object.id)
+                .and_modify(|e| *e = object.mesh.clone());
+        }
+    }
+
+    pub fn apply(&self, objects: &mut [Object]) {
+        for object in objects.iter_mut() {
+            if let Some(mesh) = self.selected.get(&object.id) {
+                object.mesh = mesh.clone();
+                object.mesh.apply(&self.trans);
+            }
+        }
     }
 }
 
@@ -61,10 +84,10 @@ pub struct State {
     pub object_icon: egui::TextureHandle,
     pub toolpath_icon: egui::TextureHandle,
 
-    pub action: Option<tool::Action>,
+    pub action: Option<Action>,
 
     pub selection: Selection,
-    pub tool: tool::Tool,
+    pub tool: Tool,
 }
 
 impl State {
@@ -73,16 +96,22 @@ impl State {
         let object_icon = ctx.load_texture("object", icon!("object"), Default::default());
         let toolpath_icon = ctx.load_texture("toolpath", icon!("toolpath"), Default::default());
 
-        let tool = tool::Tool::Move;
+        let tool = Tool::Move;
 
         Self {
             group_icon,
             object_icon,
             toolpath_icon,
             action: None,
-            selection: Selection::new(),
+            selection: Selection::new(tool.default_trans()),
             tool,
         }
+    }
+
+    pub fn switch_tool(&mut self, tool: Tool, objects: &mut [Object]) {
+        self.selection.push_transformation(objects);
+        self.selection.trans = tool.default_trans();
+        self.tool = tool;
     }
 }
 
@@ -109,19 +138,22 @@ impl Message {
 
                     if !shift
                         && state.selection.selected.len() == 1
-                        && state.selection.selected.contains(id)
+                        && state.selection.selected.contains_key(id)
                     {
                         continue;
                     }
+
+                    state.selection.push_transformation(&mut editor.objects);
 
                     if !shift {
                         state.selection.selected.clear();
                     }
 
-                    if state.selection.selected.contains(id) {
+                    if state.selection.selected.contains_key(id) {
                         state.selection.selected.remove(id);
                     } else {
-                        state.selection.selected.insert(*id);
+                        let object = editor.objects.iter_mut().find(|o| o.id == *id).unwrap();
+                        state.selection.selected.insert(*id, object.mesh.clone());
                     }
                 }
             }

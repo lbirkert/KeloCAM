@@ -47,12 +47,12 @@ impl eframe::App for KeloApp {
                 if let Some(handle) = handle {
                     async {
                         if let Ok(mesh) = Mesh::from_stl(&mut Cursor::new(&handle.read().await)) {
+                            self.editor.id_counter += 1;
                             self.editor.objects.push(Object::new(
                                 mesh,
                                 handle.file_name(),
                                 self.editor.id_counter,
                             ));
-                            self.editor.id_counter += 1;
                         }
                     }
                     .block_on();

@@ -3,7 +3,10 @@ use egui::{ScrollArea, Vec2};
 use nalgebra::{UnitVector3, Vector3};
 use std::{collections::HashSet, sync::Arc};
 
-use crate::{core::primitives::Plane, renderer};
+use crate::{
+    core::primitives::{Plane, Trans},
+    renderer,
+};
 
 pub mod camera;
 pub mod object;
@@ -145,14 +148,15 @@ impl Editor {
                     messages.push(state::Message::Delete(object.id));
                 }
             } else if ui.input(|i| i.key_pressed(egui::Key::G)) {
-                state.tool = tool::Tool::Move;
+                state.switch_tool(tool::Tool::Move, &mut self.objects);
             } else if ui.input(|i| i.key_pressed(egui::Key::R)) {
-                state.tool = tool::Tool::Rotate;
+                state.switch_tool(tool::Tool::Rotate, &mut self.objects);
             } else if ui.input(|i| i.key_pressed(egui::Key::S)) {
                 if ui.input(|i| i.modifiers.shift) {
                     state.tool = tool::Tool::Scale { uniform: false };
+                    state.switch_tool(tool::Tool::Scale { uniform: false }, &mut self.objects);
                 } else {
-                    state.tool = tool::Tool::Scale { uniform: true };
+                    state.switch_tool(tool::Tool::Scale { uniform: true }, &mut self.objects);
                 }
             }
         }
@@ -175,8 +179,8 @@ impl Editor {
                                 state.selection.origin,
                                 UnitVector3::new_normalize(
                                     (self.camera.eye() - state.selection.origin)
-                                        .cross(&axis.vector)
-                                        .cross(&axis.vector),
+                                        .cross(axis.vector())
+                                        .cross(axis.vector()),
                                 ),
                             ),
                             before,
@@ -184,50 +188,31 @@ impl Editor {
                         );
 
                         if let Some(delta) = delta {
-                            match state.tool {
-                                tool::Tool::Move => {
-                                    let delta = axis.vector.scale(delta.dot(&axis.vector));
+                            match state.selection.trans {
+                                Trans::Translate(ref mut tdelta) => {
+                                    *tdelta += axis.vector().scale(delta.dot(axis.vector()));
 
-                                    for object in self.objects.iter_mut() {
-                                        if state.selection.contains(&object.id) {
-                                            object.mesh.translate(&delta);
-                                        }
-                                    }
+                                    state.selection.apply(&mut self.objects);
                                 }
-                                tool::Tool::Scale { uniform } => {
-                                    let fac = 2.0
-                                        / if uniform {
-                                            (state.selection.sup - state.selection.inf).magnitude()
-                                        } else {
-                                            (state.selection.sup - state.selection.inf)
-                                                .dot(&axis.vector)
-                                        };
+                                Trans::Scale(ref mut tdelta) => {
+                                    *tdelta += (2.0 * delta.dot(axis.vector()))
+                                        / (state.selection.sup - state.selection.inf).magnitude();
 
-                                    let delta = if uniform {
-                                        Vector3::from_element(1.0)
-                                    } else {
-                                        axis.vector.into_inner()
-                                    }
-                                    .scale(delta.dot(&axis.vector) * fac);
-
-                                    for object in self.objects.iter_mut() {
-                                        if state.selection.contains(&object.id) {
-                                            object.mesh.translate(&-state.selection.origin);
-                                            object.mesh.scale_non_uniformly(&delta);
-                                            object.mesh.translate(&state.selection.origin);
-                                        }
-                                    }
+                                    state.selection.apply(&mut self.objects);
                                 }
-                                tool::Tool::Rotate => {
-                                    let delta = axis.vector.scale(delta.dot(&axis.vector) * 0.1);
+                                Trans::ScaleNonUniformly(ref mut tdelta) => {
+                                    *tdelta += axis.vector().scale(
+                                        (2.0 * delta.dot(axis.vector()))
+                                            / (state.selection.sup - state.selection.inf)
+                                                .dot(axis.vector()),
+                                    );
 
-                                    for object in self.objects.iter_mut() {
-                                        if state.selection.contains(&object.id) {
-                                            object.mesh.translate(&-state.selection.origin);
-                                            object.mesh.rotate(&delta);
-                                            object.mesh.translate(&state.selection.origin);
-                                        }
-                                    }
+                                    state.selection.apply(&mut self.objects);
+                                }
+                                Trans::Rotate(ref mut tdelta) => {
+                                    *tdelta += axis.vector().scale(delta.dot(axis.vector()) * 0.1);
+
+                                    state.selection.apply(&mut self.objects);
                                 }
                             }
                         }
@@ -236,7 +221,7 @@ impl Editor {
                     }
                 } else if let Some(axis) = state.tool.intersect(
                     &state.selection.origin,
-                    0.02 / self.camera.zoom,
+                    0.2 / self.camera.zoom,
                     &camera_ray,
                 ) {
                     if response.dragged_by(egui::PointerButton::Primary) {
@@ -258,6 +243,18 @@ impl Editor {
         let mut path_verticies = Vec::new();
         let mut path_indicies = Vec::new();
 
+        // Generate tool verticies
+        if state.selection.valid() {
+            state.tool.generate(
+                &state.selection.origin,
+                0.2 / self.camera.zoom,
+                &state.action,
+                &mut path_verticies,
+                &mut path_indicies,
+                &mut entity_verticies,
+            )
+        }
+
         // Generate object verticies
         for object in self.objects.iter_mut() {
             if state.selection.contains(&object.id) {
@@ -266,11 +263,7 @@ impl Editor {
                 renderer::object::generate(object, [1.0, 1.0, 1.0], &mut object_verticies);
             }
 
-            for points in object
-                .mesh
-                .z_slice(self.z_slice, &mut entity_verticies)
-                .iter()
-            {
+            for points in object.mesh.z_slice(self.z_slice).iter() {
                 renderer::path::generate_closed(
                     &points
                         .extend3(
@@ -383,15 +376,15 @@ impl Editor {
 
         ui.horizontal(|ui| {
             if ui.selectable_label(tmove, "G").clicked() {
-                state.tool = tool::Tool::Move;
+                state.switch_tool(tool::Tool::Move, &mut self.objects);
             }
 
             if ui.selectable_label(tscale, "S").clicked() {
-                state.tool = tool::Tool::Scale { uniform: true };
+                state.switch_tool(tool::Tool::Scale { uniform: true }, &mut self.objects);
             }
 
             if ui.selectable_label(trotate, "R").clicked() {
-                state.tool = tool::Tool::Rotate;
+                state.switch_tool(tool::Tool::Rotate, &mut self.objects);
             }
         });
     }
@@ -427,14 +420,14 @@ impl Renderer {
                 .render(render_pass, object_vertex_count);
         }
 
-        if entity_vertex_count != 0 {
-            self.entity_renderer
-                .render(render_pass, entity_vertex_count);
-        }
-
         if path_vertex_count != 0 {
             self.path_renderer
                 .render(render_pass, path_vertex_count, path_index_count);
+        }
+
+        if entity_vertex_count != 0 {
+            self.entity_renderer
+                .render(render_pass, entity_vertex_count);
         }
     }
 }

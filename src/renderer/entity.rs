@@ -29,6 +29,64 @@ pub struct Vertex {
     color: [f32; 3],
 }
 
+/// Generates a cube entity
+#[rustfmt::skip]
+pub fn generate_cube(
+    scale: f32,
+    origin: &Vector3<f32>,
+    color: [f32; 3],
+    verticies: &mut Vec<Vertex>,
+) {
+    let a = Vector3::new(scale * 0.5, scale * 0.5, scale * 0.5);
+    let b = Vector3::new(scale * 0.5, -scale * 0.5, scale * 0.5);
+    let c = Vector3::new(-scale * 0.5, -scale * 0.5, scale * 0.5);
+    let d = Vector3::new(-scale * 0.5, scale * 0.5, scale * 0.5);
+
+    verticies.push(Vertex { pos: (origin + a).into(), color });
+    verticies.push(Vertex { pos: (origin + c).into(), color });
+    verticies.push(Vertex { pos: (origin + d).into(), color });
+    verticies.push(Vertex { pos: (origin + c).into(), color });
+    verticies.push(Vertex { pos: (origin + a).into(), color });
+    verticies.push(Vertex { pos: (origin + b).into(), color });
+    
+    verticies.push(Vertex { pos: (origin - a).into(), color });
+    verticies.push(Vertex { pos: (origin - c).into(), color });
+    verticies.push(Vertex { pos: (origin - d).into(), color });
+    verticies.push(Vertex { pos: (origin - c).into(), color });
+    verticies.push(Vertex { pos: (origin - a).into(), color });
+    verticies.push(Vertex { pos: (origin - b).into(), color });
+    
+    verticies.push(Vertex { pos: (origin + b).into(), color });
+    verticies.push(Vertex { pos: (origin + a).into(), color });
+    verticies.push(Vertex { pos: (origin - d).into(), color });
+    verticies.push(Vertex { pos: (origin - d).into(), color });
+    verticies.push(Vertex { pos: (origin + a).into(), color });
+    verticies.push(Vertex { pos: (origin - c).into(), color });
+    
+    verticies.push(Vertex { pos: (origin - b).into(), color });
+    verticies.push(Vertex { pos: (origin - a).into(), color });
+    verticies.push(Vertex { pos: (origin + d).into(), color });
+    verticies.push(Vertex { pos: (origin + d).into(), color });
+    verticies.push(Vertex { pos: (origin - a).into(), color });
+    verticies.push(Vertex { pos: (origin + c).into(), color });
+    
+    verticies.push(Vertex { pos: (origin + a).into(), color });
+    verticies.push(Vertex { pos: (origin + d).into(), color });
+    verticies.push(Vertex { pos: (origin - b).into(), color });
+    verticies.push(Vertex { pos: (origin - b).into(), color });
+    verticies.push(Vertex { pos: (origin - c).into(), color });
+    verticies.push(Vertex { pos: (origin + a).into(), color });
+    
+    verticies.push(Vertex { pos: (origin - a).into(), color });
+    verticies.push(Vertex { pos: (origin - d).into(), color });
+    verticies.push(Vertex { pos: (origin + b).into(), color });
+    verticies.push(Vertex { pos: (origin + b).into(), color });
+    verticies.push(Vertex { pos: (origin + c).into(), color });
+    verticies.push(Vertex { pos: (origin - a).into(), color });
+}
+
+/// Generates an arrow entity
+#[rustfmt::skip]
 pub fn generate_arrow(
     scale: f32,
     origin: &Vector3<f32>,
@@ -36,7 +94,7 @@ pub fn generate_arrow(
     color: [f32; 3],
     verticies: &mut Vec<Vertex>,
 ) {
-    let mut na = direction.cross(&Vector3::new(-direction.z, direction.y, direction.x));
+    let mut na = direction.cross(&Vector3::new(-direction.z, direction.x, direction.y));
     na.normalize_mut();
     let mut nb = direction.cross(&na);
     nb.normalize_mut();
@@ -45,57 +103,21 @@ pub fn generate_arrow(
     nb.scale_mut(scale / 2.0);
     let nc = direction.scale(scale);
 
-    verticies.push(Vertex {
-        pos: (origin + na).into(),
-        color,
-    });
-    verticies.push(Vertex {
-        pos: (origin + nb).into(),
-        color,
-    });
-    verticies.push(Vertex {
-        pos: (origin + nc).into(),
-        color,
-    });
-
-    verticies.push(Vertex {
-        pos: (origin + nb).into(),
-        color,
-    });
-    verticies.push(Vertex {
-        pos: (origin - na).into(),
-        color,
-    });
-    verticies.push(Vertex {
-        pos: (origin + nc).into(),
-        color,
-    });
-
-    verticies.push(Vertex {
-        pos: (origin - na).into(),
-        color,
-    });
-    verticies.push(Vertex {
-        pos: (origin - nb).into(),
-        color,
-    });
-    verticies.push(Vertex {
-        pos: (origin + nc).into(),
-        color,
-    });
-
-    verticies.push(Vertex {
-        pos: (origin - nb).into(),
-        color,
-    });
-    verticies.push(Vertex {
-        pos: (origin + na).into(),
-        color,
-    });
-    verticies.push(Vertex {
-        pos: (origin + nc).into(),
-        color,
-    });
+    verticies.push(Vertex { pos: (origin + na).into(), color });
+    verticies.push(Vertex { pos: (origin + nb).into(), color });
+    verticies.push(Vertex { pos: (origin + nc).into(), color });
+    
+    verticies.push(Vertex { pos: (origin + nb).into(), color });
+    verticies.push(Vertex { pos: (origin - na).into(), color });
+    verticies.push(Vertex { pos: (origin + nc).into(), color });
+    
+    verticies.push(Vertex { pos: (origin - na).into(), color });
+    verticies.push(Vertex { pos: (origin - nb).into(), color });
+    verticies.push(Vertex { pos: (origin + nc).into(), color });
+    
+    verticies.push(Vertex { pos: (origin - nb).into(), color });
+    verticies.push(Vertex { pos: (origin + na).into(), color });
+    verticies.push(Vertex { pos: (origin + nc).into(), color });
 }
 
 pub struct Renderer {
