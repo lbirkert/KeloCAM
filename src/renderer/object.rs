@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use eframe::wgpu;
 
-use crate::editor::object::Object;
+use crate::core::primitives::Triangle;
 
 pub const VERTEX_SIZE: usize = std::mem::size_of::<Vertex>();
 pub const VERTEX_BUFFER_LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::VertexBufferLayout {
@@ -38,8 +38,8 @@ pub struct Vertex {
 }
 
 /// Generate the verticies for this object.
-pub fn generate(object: &Object, color: [f32; 3], verticies: &mut Vec<Vertex>) {
-    for triangle in object.mesh.triangles.iter() {
+pub fn generate(triangles: &[Triangle], color: [f32; 3], verticies: &mut Vec<Vertex>) {
+    for triangle in triangles.iter() {
         let normal = triangle.normal.into_inner();
         verticies.push(Vertex {
             pos: triangle.a.into(),

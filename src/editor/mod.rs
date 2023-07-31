@@ -1,27 +1,32 @@
 use eframe::{egui, egui_wgpu, wgpu};
 use egui::{ScrollArea, Vec2};
 use nalgebra::{UnitVector3, Vector3};
-use std::{collections::HashSet, sync::Arc};
+use std::sync::Arc;
 
-use crate::{
-    core::primitives::{Plane, Trans},
-    renderer,
-};
+use crate::{core::primitives::Plane, renderer};
 
 pub mod camera;
+pub mod icons;
+pub mod log;
 pub mod object;
 pub mod state;
 pub mod tool;
 
+pub use camera::Camera;
+pub use icons::Icons;
+pub use log::Log;
+pub use log::Message;
+pub use state::State;
+pub use tool::Action;
+pub use tool::Tool;
+
 #[derive(Default)]
 pub struct Editor {
-    camera: camera::Camera,
-
-    pub id_counter: u32,
-
-    pub objects: Vec<object::Object>,
+    camera: Camera,
 
     pub z_slice: f32,
+    pub state: State,
+    pub action: Option<Action>,
 }
 
 impl Editor {
@@ -76,19 +81,6 @@ impl Editor {
         })
     }
 
-    pub fn inf_sup(&self, objects: &HashSet<u32>) -> (Vector3<f32>, Vector3<f32>) {
-        let mut inf = Vector3::from_element(std::f32::INFINITY);
-        let mut sup = Vector3::from_element(std::f32::NEG_INFINITY);
-        for object in self.objects.iter().filter(|o| objects.contains(&o.id)) {
-            let (oinf, osup) = object.mesh.inf_sup();
-
-            inf = inf.inf(&oinf);
-            sup = sup.sup(&osup);
-        }
-
-        (inf, sup)
-    }
-
     pub fn move_delta(&self, plane: &Plane, before: Vec2, after: Vec2) -> Option<Vector3<f32>> {
         Some(
             plane.intersect(&self.camera.screen_ray(after.x, after.y))?
@@ -96,15 +88,26 @@ impl Editor {
         )
     }
 
-    pub fn ui(
-        &mut self,
-        ui: &mut egui::Ui,
-        state: &mut state::State,
-        messages: &mut Vec<state::Message>,
-    ) {
+    pub fn ui(&mut self, ui: &mut egui::Ui, messages: &mut Vec<Message>) {
         let available_size = ui.available_size();
 
         let (rect, response) = ui.allocate_exact_size(available_size, egui::Sense::drag());
+
+        let mut selection_inf = Vector3::from_element(std::f32::INFINITY);
+        let mut selection_sup = Vector3::from_element(std::f32::NEG_INFINITY);
+        let selection_origin = {
+            if self.state.selected() {
+                for (_, object) in self.state.iter_selection() {
+                    let (oinf, osup) = object.mesh.inf_sup();
+                    selection_inf = selection_inf.inf(&oinf);
+                    selection_sup = selection_sup.sup(&osup);
+                }
+
+                (selection_inf + selection_sup).scale(0.5)
+            } else {
+                Vector3::zeros()
+            }
+        };
 
         self.camera.handle(ui, rect, &response);
 
@@ -117,22 +120,22 @@ impl Editor {
             let mut intersection_id = 0;
             let mut intersection_dist = std::f32::INFINITY;
 
-            for object in self.objects.iter() {
+            for (id, object) in self.state.objects.iter() {
                 if let Some(point) = object.mesh.intersection(&camera_ray) {
                     // It is not important to calculate the exact distance as we only want
                     // to compare the distance with other intersection points
                     let dist = (camera_ray.origin - point).magnitude_squared();
                     if dist < intersection_dist {
                         intersection_dist = dist;
-                        intersection_id = object.id;
+                        intersection_id = *id;
                     }
                 }
             }
 
             if intersection_id != 0 {
-                messages.push(state::Message::Select(intersection_id));
+                messages.push(self.state.perform_selection(ui, intersection_id));
             } else {
-                state.selection.clear();
+                messages.push(self.state.unselect_all());
             }
         }
 
@@ -140,33 +143,30 @@ impl Editor {
         if ui.rect_contains_pointer(rect) {
             // Handle viewport delete
             if ui.input(|i| i.key_pressed(egui::Key::Delete)) {
-                for object in self
-                    .objects
-                    .iter()
-                    .filter(|i| state.selection.contains(&i.id))
-                {
-                    messages.push(state::Message::Delete(object.id));
+                for (id, _) in self.state.iter_selection() {
+                    messages.push(self.state.delete_object(*id));
                 }
             } else if ui.input(|i| i.key_pressed(egui::Key::G)) {
-                state.switch_tool(tool::Tool::Move, &mut self.objects);
+                messages.push(Message::Tool(Tool::translate()));
             } else if ui.input(|i| i.key_pressed(egui::Key::R)) {
-                state.switch_tool(tool::Tool::Rotate, &mut self.objects);
+                messages.push(Message::Tool(Tool::rotate()));
             } else if ui.input(|i| i.key_pressed(egui::Key::S)) {
+                messages.push(Message::Tool(Tool::scale()));
+            } else if ui.input(|i| i.key_pressed(egui::Key::Z) && i.modifiers.command) {
                 if ui.input(|i| i.modifiers.shift) {
-                    state.tool = tool::Tool::Scale { uniform: false };
-                    state.switch_tool(tool::Tool::Scale { uniform: false }, &mut self.objects);
+                    self.state.redo();
                 } else {
-                    state.switch_tool(tool::Tool::Scale { uniform: true }, &mut self.objects);
+                    self.state.undo();
                 }
             }
         }
 
-        if state.selection.valid() {
+        if self.state.selected() {
             // Handle viewport transformation
             if let Some(hover_pos) = response.hover_pos() {
                 let pos = hover_pos - response.rect.left_top();
                 let camera_ray = self.camera.screen_ray(pos.x, pos.y);
-                if let Some(tool::Action::Transform(ref axis)) = state.action {
+                if let Some(Action::Transform(ref axis)) = self.action {
                     if response.dragged_by(egui::PointerButton::Primary) {
                         ui.output_mut(|o| o.cursor_icon = egui::CursorIcon::Grabbing);
 
@@ -176,9 +176,9 @@ impl Editor {
 
                         let delta = self.move_delta(
                             &Plane::new(
-                                state.selection.origin,
+                                selection_origin,
                                 UnitVector3::new_normalize(
-                                    (self.camera.eye() - state.selection.origin)
+                                    (self.camera.eye() - selection_origin)
                                         .cross(axis.vector())
                                         .cross(axis.vector()),
                                 ),
@@ -188,54 +188,58 @@ impl Editor {
                         );
 
                         if let Some(delta) = delta {
-                            match state.selection.trans {
-                                Trans::Translate(ref mut tdelta) => {
+                            match self.state.tool {
+                                Tool::Translate(ref mut tdelta) => {
                                     *tdelta += axis.vector().scale(delta.dot(axis.vector()));
-
-                                    state.selection.apply(&mut self.objects);
                                 }
-                                Trans::Scale(ref mut tdelta) => {
+                                Tool::Scale(ref mut tdelta) => {
                                     *tdelta += (2.0 * delta.dot(axis.vector()))
-                                        / (state.selection.sup - state.selection.inf).magnitude();
-
-                                    state.selection.apply(&mut self.objects);
+                                        / (selection_sup - selection_inf).magnitude();
                                 }
-                                Trans::ScaleNonUniformly(ref mut tdelta) => {
+                                Tool::ScaleNonUniformly(ref mut tdelta) => {
                                     *tdelta += axis.vector().scale(
                                         (2.0 * delta.dot(axis.vector()))
-                                            / (state.selection.sup - state.selection.inf)
-                                                .dot(axis.vector()),
+                                            / (selection_sup - selection_inf).dot(axis.vector()),
                                     );
-
-                                    state.selection.apply(&mut self.objects);
                                 }
-                                Trans::Rotate(ref mut tdelta) => {
+                                Tool::Rotate(ref mut tdelta) => {
                                     *tdelta += axis.vector().scale(delta.dot(axis.vector()) * 0.1);
-
-                                    state.selection.apply(&mut self.objects);
                                 }
                             }
                         }
                     } else {
-                        state.action = None
+                        // Apply transformation on objects
+                        for (id, object) in self.state.iter_selection() {
+                            let mut mesh = object.mesh.clone();
+                            mesh.translate(&-selection_origin);
+                            self.state.tool.apply(&mut mesh);
+                            // Snap to plate
+                            let (inf, _) = mesh.inf_sup();
+                            mesh.translate(
+                                &(selection_origin
+                                    + Vector3::new(0.0, 0.0, -inf.z - selection_origin.z)),
+                            );
+
+                            messages.push(Message::Mesh { id: *id, mesh });
+                        }
+
+                        self.action = None;
                     }
-                } else if let Some(axis) = state.tool.intersect(
-                    &state.selection.origin,
-                    0.2 / self.camera.zoom,
+                } else if let Some(axis) = self.state.tool.intersect(
+                    &selection_origin,
+                    0.15 / self.camera.zoom,
                     &camera_ray,
                 ) {
                     if response.dragged_by(egui::PointerButton::Primary) {
-                        state.action = Some(tool::Action::Transform(axis));
+                        self.action = Some(tool::Action::Transform(axis));
                     } else {
-                        state.action = Some(tool::Action::Hover(axis));
+                        self.action = Some(tool::Action::Hover(axis));
                         ui.output_mut(|o| o.cursor_icon = egui::CursorIcon::Grab);
                     }
                 } else {
-                    state.action = None;
+                    self.action = None;
                 }
             }
-
-            state.selection.update_origin(&self.objects);
         }
 
         let mut object_verticies = Vec::new();
@@ -244,11 +248,11 @@ impl Editor {
         let mut path_indicies = Vec::new();
 
         // Generate tool verticies
-        if state.selection.valid() {
-            state.tool.generate(
-                &state.selection.origin,
-                0.2 / self.camera.zoom,
-                &state.action,
+        if self.state.selected() {
+            self.state.tool.generate(
+                &selection_origin,
+                0.15 / self.camera.zoom,
+                &self.action,
                 &mut path_verticies,
                 &mut path_indicies,
                 &mut entity_verticies,
@@ -256,11 +260,19 @@ impl Editor {
         }
 
         // Generate object verticies
-        for object in self.objects.iter_mut() {
-            if state.selection.contains(&object.id) {
-                renderer::object::generate(object, [1.0, 0.0, 0.0], &mut object_verticies);
+        for (id, object) in self.state.objects.iter() {
+            if self.state.selection.contains(id) {
+                let mut mesh = object.mesh.clone();
+                mesh.translate(&-selection_origin);
+                self.state.tool.apply(&mut mesh);
+                mesh.translate(&selection_origin);
+                renderer::object::generate(&mesh.triangles, [1.0, 0.0, 0.0], &mut object_verticies);
             } else {
-                renderer::object::generate(object, [1.0, 1.0, 1.0], &mut object_verticies);
+                renderer::object::generate(
+                    &object.mesh.triangles,
+                    [1.0, 1.0, 1.0],
+                    &mut object_verticies,
+                );
             }
 
             for points in object.mesh.z_slice(self.z_slice).iter() {
@@ -340,13 +352,8 @@ impl Editor {
         ui.painter().add(callback);
     }
 
-    pub fn sidebar(
-        &mut self,
-        ui: &mut egui::Ui,
-        state: &mut state::State,
-        messages: &mut Vec<state::Message>,
-    ) {
-        if self.objects.is_empty() {
+    pub fn sidebar(&mut self, ui: &mut egui::Ui, icons: &Icons, messages: &mut Vec<Message>) {
+        if self.state.objects.is_empty() {
             ui.label("Click on File > Open to import a model");
         }
 
@@ -355,43 +362,45 @@ impl Editor {
         let row_height = ui.text_style_height(&egui::TextStyle::Button) + 5.0;
         let max_height =
             ui.available_height() - ui.text_style_height(&egui::TextStyle::Button) - 10.0;
+
         ScrollArea::vertical()
             .auto_shrink([false; 2])
             .max_height(max_height)
-            .show_rows(ui, row_height, self.objects.len(), |ui, row_range| {
-                for i in row_range {
-                    self.objects[i].ui(ui, state, messages);
-                }
-            });
+            .show_rows(
+                ui,
+                row_height,
+                self.state.object_ids.len(),
+                |ui, row_range| {
+                    for i in row_range {
+                        let id = self.state.object_ids[i];
+                        self.state.objects[&id].ui(ui, id, &self.state, icons, messages);
+                    }
+                },
+            );
 
-        let mut tmove = false;
-        let mut tscale = false;
-        let mut trotate = false;
+        let mut translate = false;
+        let mut scale = false;
+        let mut rotate = false;
 
-        match state.tool {
-            tool::Tool::Move => tmove = true,
-            tool::Tool::Scale { .. } => tscale = true,
-            tool::Tool::Rotate => trotate = true,
+        match self.state.tool {
+            Tool::Translate(_) => translate = true,
+            Tool::Scale(_) | Tool::ScaleNonUniformly(_) => scale = true,
+            Tool::Rotate(_) => rotate = true,
         };
 
         ui.horizontal(|ui| {
-            if ui.selectable_label(tmove, "G").clicked() {
-                state.switch_tool(tool::Tool::Move, &mut self.objects);
+            if ui.selectable_label(translate, "G").clicked() {
+                messages.push(Message::Tool(Tool::translate()));
             }
 
-            if ui.selectable_label(tscale, "S").clicked() {
-                state.switch_tool(tool::Tool::Scale { uniform: true }, &mut self.objects);
+            if ui.selectable_label(scale, "S").clicked() {
+                messages.push(Message::Tool(Tool::scale()));
             }
 
-            if ui.selectable_label(trotate, "R").clicked() {
-                state.switch_tool(tool::Tool::Rotate, &mut self.objects);
+            if ui.selectable_label(rotate, "R").clicked() {
+                messages.push(Message::Tool(Tool::rotate()));
             }
         });
-    }
-
-    pub fn uid(&mut self) -> u32 {
-        self.id_counter += 1;
-        self.id_counter
     }
 }
 

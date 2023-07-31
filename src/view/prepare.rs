@@ -1,14 +1,14 @@
-use crate::editor::state::{Message, State};
+use crate::editor::icons::Icons;
 use crate::editor::Editor;
 
 #[derive(Default)]
 pub struct PrepareView {
-    editor_state: Option<State>,
+    icons: Option<Icons>,
 }
 
 impl PrepareView {
     pub fn show(&mut self, ctx: &egui::Context, editor: &mut Editor) {
-        let state = self.editor_state.get_or_insert_with(|| State::load(ctx));
+        let icons = self.icons.get_or_insert_with(|| Icons::load(ctx));
         let mut messages = Vec::new();
 
         egui::SidePanel::left("sidebar")
@@ -18,14 +18,16 @@ impl PrepareView {
             .show_separator_line(true)
             .show(ctx, |ui| {
                 egui::ScrollArea::new([false, true]).show(ui, |ui| {
-                    editor.sidebar(ui, state, &mut messages);
+                    editor.sidebar(ui, icons, &mut messages);
                 });
             });
 
         egui::CentralPanel::default()
             .frame(egui::Frame::default())
-            .show(ctx, |ui| editor.ui(ui, state, &mut messages));
+            .show(ctx, |ui| editor.ui(ui, &mut messages));
 
-        Message::process(editor, state, &messages, ctx);
+        for message in messages {
+            editor.state.push(message);
+        }
     }
 }

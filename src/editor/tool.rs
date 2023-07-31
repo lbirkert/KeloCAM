@@ -1,7 +1,7 @@
 use nalgebra::{UnitVector3, Vector3};
 
 use crate::{
-    core::primitives::{Axis, Ray, Square, Trans},
+    core::primitives::{Axis, Mesh, Ray, Square},
     renderer,
 };
 
@@ -12,26 +12,45 @@ pub enum Action {
 }
 
 pub enum Tool {
-    Move,
-    Scale { uniform: bool },
-    Rotate,
+    Translate(Vector3<f32>),
+    Scale(f32),
+    ScaleNonUniformly(Vector3<f32>),
+    Rotate(Vector3<f32>),
 }
 
 impl Tool {
-    /// Return the default transformation for this tool, which when applied does not change the
-    /// vertex positions and vertex normals.
-    pub fn default_trans(&self) -> Trans {
+    pub fn reset(&mut self) {
         match self {
-            Self::Move => Trans::Translate(Vector3::zeros()),
-            Self::Scale { uniform } => {
-                if *uniform {
-                    Trans::Scale(1.0)
-                } else {
-                    Trans::ScaleNonUniformly(Vector3::from_element(1.0))
-                }
-            }
-            Self::Rotate => Trans::Rotate(Vector3::zeros()),
+            Tool::Translate(ref mut delta) => *delta = Vector3::zeros(),
+            Tool::Rotate(ref mut delta) => *delta = Vector3::zeros(),
+            Tool::Scale(ref mut delta) => *delta = 1.0,
+            Tool::ScaleNonUniformly(ref mut delta) => *delta = Vector3::from_element(1.0),
         }
+    }
+
+    pub fn apply(&self, mesh: &mut Mesh) {
+        match self {
+            Tool::Translate(delta) => mesh.translate(delta),
+            Tool::Scale(delta) => mesh.scale(*delta),
+            Tool::ScaleNonUniformly(delta) => mesh.scale_non_uniformly(delta),
+            Tool::Rotate(delta) => mesh.rotate(delta),
+        }
+    }
+
+    pub fn translate() -> Self {
+        Self::Translate(Vector3::zeros())
+    }
+
+    pub fn scale() -> Self {
+        Self::Scale(1.0)
+    }
+
+    pub fn scale_non_uniformly() -> Self {
+        Self::ScaleNonUniformly(Vector3::from_element(1.0))
+    }
+
+    pub fn rotate() -> Self {
+        Self::Rotate(Vector3::zeros())
     }
 
     /// Generate the UI part of this tool.
@@ -49,14 +68,14 @@ impl Tool {
         let mut zcolor = [0.0, 0.0, 1.0];
         if let Some(action) = action {
             match action {
-                Action::Hover(Axis::X) | Action::Transform(Axis::X) => xcolor = [1.0, 0.4, 0.4],
-                Action::Hover(Axis::Y) | Action::Transform(Axis::Y) => ycolor = [0.4, 1.0, 0.4],
-                Action::Hover(Axis::Z) | Action::Transform(Axis::Z) => zcolor = [0.4, 0.4, 1.0],
+                Action::Hover(Axis::X) | Action::Transform(Axis::X) => xcolor = [1.0, 0.6, 0.6],
+                Action::Hover(Axis::Y) | Action::Transform(Axis::Y) => ycolor = [0.6, 1.0, 0.6],
+                Action::Hover(Axis::Z) | Action::Transform(Axis::Z) => zcolor = [0.6, 0.6, 1.0],
             };
         }
 
         match self {
-            Self::Move | Self::Scale { .. } => {
+            Self::Translate { .. } | Self::Scale { .. } | Self::ScaleNonUniformly { .. } => {
                 let x_end = Vector3::new(scale, 0.0, 0.0) + origin;
                 let y_end = Vector3::new(0.0, scale, 0.0) + origin;
                 let z_end = Vector3::new(0.0, 0.0, scale) + origin;
@@ -83,7 +102,7 @@ impl Tool {
                 );
 
                 match self {
-                    Self::Move => {
+                    Self::Translate { .. } => {
                         renderer::entity::generate_arrow(
                             scale * 0.1,
                             &x_end,
@@ -106,7 +125,7 @@ impl Tool {
                             entity_verticies,
                         );
                     }
-                    Self::Scale { .. } => {
+                    Self::Scale { .. } | Self::ScaleNonUniformly { .. } => {
                         renderer::entity::generate_cube(
                             scale * 0.1,
                             &x_end,
@@ -129,7 +148,69 @@ impl Tool {
                     _ => {}
                 }
             }
-            _ => {}
+            Self::Rotate { .. } => {
+                let mut xp = Vec::new();
+                let mut yp = Vec::new();
+                let mut zp = Vec::new();
+                const RES: i32 = 30;
+                for i in 0..RES {
+                    let angle = (i as f32 / RES as f32) * std::f32::consts::TAU;
+                    let (mut sin, mut cos) = angle.sin_cos();
+                    sin *= scale;
+                    cos *= scale;
+                    xp.push(Vector3::new(0.0, sin, cos) + origin);
+                    yp.push(Vector3::new(sin, 0.0, cos) + origin);
+                    zp.push(Vector3::new(sin, cos, 0.0) + origin);
+                }
+
+                renderer::path::generate_closed(&xp, xcolor, 0.01, path_verticies, path_indicies);
+                renderer::entity::generate_arrow(
+                    0.1 * scale,
+                    &(origin + Vector3::new(0.0, 0.1 * scale, 0.98 * scale)),
+                    &Vector3::y_axis(),
+                    xcolor,
+                    entity_verticies,
+                );
+                renderer::entity::generate_arrow(
+                    0.1 * scale,
+                    &(origin + Vector3::new(0.0, -0.1 * scale, 0.98 * scale)),
+                    &-Vector3::y_axis(),
+                    xcolor,
+                    entity_verticies,
+                );
+
+                renderer::path::generate_closed(&yp, ycolor, 0.01, path_verticies, path_indicies);
+                renderer::entity::generate_arrow(
+                    0.1 * scale,
+                    &(origin + Vector3::new(0.98 * scale, 0.0, 0.1 * scale)),
+                    &Vector3::z_axis(),
+                    ycolor,
+                    entity_verticies,
+                );
+                renderer::entity::generate_arrow(
+                    0.1 * scale,
+                    &(origin + Vector3::new(0.98 * scale, 0.0, -0.1 * scale)),
+                    &-Vector3::z_axis(),
+                    ycolor,
+                    entity_verticies,
+                );
+
+                renderer::path::generate_closed(&zp, zcolor, 0.01, path_verticies, path_indicies);
+                renderer::entity::generate_arrow(
+                    0.1 * scale,
+                    &(origin + Vector3::new(0.1 * scale, 0.98 * scale, 0.0)),
+                    &Vector3::x_axis(),
+                    zcolor,
+                    entity_verticies,
+                );
+                renderer::entity::generate_arrow(
+                    0.1 * scale,
+                    &(origin + Vector3::new(-0.1 * scale, 0.98 * scale, 0.0)),
+                    &-Vector3::x_axis(),
+                    zcolor,
+                    entity_verticies,
+                );
+            }
         }
     }
 
@@ -158,7 +239,7 @@ impl Tool {
 
     pub fn intersect(&self, origin: &Vector3<f32>, scale: f32, ray: &Ray) -> Option<Axis> {
         match self {
-            Tool::Move | Tool::Scale { .. } => {
+            Tool::Translate(_) | Tool::Scale(_) | Tool::ScaleNonUniformly(_) => {
                 let mut axis = None;
 
                 if Self::intersect_axis(origin, &Axis::X, scale, ray).is_some() {
@@ -173,8 +254,8 @@ impl Tool {
 
                 axis
             }
-            Tool::Rotate => {
-                const TOLLERANCE: f32 = 0.2;
+            Tool::Rotate(_) => {
+                const TOLLERANCE: f32 = 0.1;
                 let radius = ((1.0 - TOLLERANCE) * scale)..((1.0 + TOLLERANCE) * scale);
 
                 let mut axis = None;
@@ -200,5 +281,11 @@ impl Tool {
                 axis
             }
         }
+    }
+}
+
+impl Default for Tool {
+    fn default() -> Self {
+        Self::translate()
     }
 }

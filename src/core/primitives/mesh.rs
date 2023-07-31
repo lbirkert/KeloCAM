@@ -2,7 +2,7 @@ use std::io::Cursor;
 
 use nalgebra::{Matrix4, UnitVector3, Vector2, Vector3};
 
-use super::{Path2, Ray, Trans, Triangle};
+use super::{Path2, Ray, Triangle};
 
 #[derive(Clone)]
 pub struct Mesh {
@@ -215,16 +215,6 @@ impl Mesh {
             triangle.b = mat.transform_vector(&triangle.b);
             triangle.c = mat.transform_vector(&triangle.c);
             triangle.normal = UnitVector3::new_unchecked(mat.transform_vector(&triangle.normal));
-        }
-    }
-
-    /// Apply a transformation.
-    pub fn apply(&mut self, trans: &Trans) {
-        match trans {
-            Trans::Scale(delta) => self.scale(*delta),
-            Trans::ScaleNonUniformly(delta) => self.scale_non_uniformly(delta),
-            Trans::Rotate(delta) => self.rotate(delta),
-            Trans::Translate(delta) => self.translate(delta),
         }
     }
 
