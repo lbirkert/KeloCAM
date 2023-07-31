@@ -4,18 +4,10 @@
 <!--
     This is a placeholder, we will merge the logo and the KeloCAM name into a single banner image later.
 !-->
-<table>
-    <td>
-      <a href="https://kelocam.org"><img src="logo.png" alt="Logo" height="160px"></a></td>
-    <td>
-<pre> _  __    _        _____          __  __ 
-| |/ /   | |      / ____|   /\   |  \/  |
-| ' / ___| | ___ | |       /  \  | \  / |
-|  < / _ \ |/ _ \| |      / /\ \ | |\/| |
-| . \  __/ | (_) | |____ / ____ \| |  | |
-|_|\_\___|_|\___/ \_____/_/    \_\_|  |_|</pre>
-    </td>
-</table>
+
+<a href="https://kelocam.org">
+    <img src="logo_full.png" alt="Logo" height="160px">
+</a>
 
 Simple and easy-to-use CAM software for hobbyists and semi-professionals
 
