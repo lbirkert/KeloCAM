@@ -6,7 +6,7 @@
 !-->
 
 <a href="https://kelocam.org">
-    <img src="logo_full.png" alt="Logo" height="160px">
+    <img src="logo_full.png" alt="Logo" max-height="160px">
 </a>
 
 Simple and easy-to-use CAM software for hobbyists and semi-professionals
