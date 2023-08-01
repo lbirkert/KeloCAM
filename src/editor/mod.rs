@@ -93,22 +93,6 @@ impl Editor {
 
         let (rect, response) = ui.allocate_exact_size(available_size, egui::Sense::drag());
 
-        let mut selection_inf = Vector3::from_element(std::f32::INFINITY);
-        let mut selection_sup = Vector3::from_element(std::f32::NEG_INFINITY);
-        let selection_origin = {
-            if self.state.selected() {
-                for (_, object) in self.state.iter_selection() {
-                    let (oinf, osup) = object.mesh.inf_sup();
-                    selection_inf = selection_inf.inf(&oinf);
-                    selection_sup = selection_sup.sup(&osup);
-                }
-
-                (selection_inf + selection_sup).scale(0.5)
-            } else {
-                Vector3::zeros()
-            }
-        };
-
         self.camera.handle(ui, rect, &response);
 
         // Handle selection
@@ -160,6 +144,22 @@ impl Editor {
                 }
             }
         }
+
+        let mut selection_inf = Vector3::from_element(std::f32::INFINITY);
+        let mut selection_sup = Vector3::from_element(std::f32::NEG_INFINITY);
+        let selection_origin = {
+            if self.state.selected() {
+                for (_, object) in self.state.iter_selection() {
+                    let (oinf, osup) = object.mesh.inf_sup();
+                    selection_inf = selection_inf.inf(&oinf);
+                    selection_sup = selection_sup.sup(&osup);
+                }
+
+                (selection_inf + selection_sup).scale(0.5)
+            } else {
+                Vector3::zeros()
+            }
+        };
 
         if self.state.selected() {
             // Handle viewport transformation
