@@ -1,4 +1,4 @@
-use std::io::Cursor;
+use std::{collections::HashSet, io::Cursor};
 
 use nalgebra::{Matrix4, UnitVector3, Vector2, Vector3};
 
@@ -53,6 +53,7 @@ impl Mesh {
     pub fn z_slice_raw(triangles: &[Triangle], z: f32) -> Vec<Path2> {
         // Used for connecting the polygons properly
         let mut points: Vec<Vector2<f32>> = Vec::new();
+        let mut segments: HashSet<(usize, usize)> = HashSet::new();
         let mut indicies: Vec<(usize, bool)> = Vec::new();
 
         for triangle in triangles.iter() {
@@ -129,7 +130,14 @@ impl Mesh {
                 points.len() - 1
             });
 
-            indicies[ai].0 = bi;
+            // Check for zero area path
+            if !segments.remove(&(bi, ai)) {
+                segments.insert((ai, bi));
+            }
+        }
+
+        for segment in segments {
+            indicies[segment.0].0 = segment.1;
         }
 
         if indicies.is_empty() {
