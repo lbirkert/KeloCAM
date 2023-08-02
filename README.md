@@ -39,4 +39,4 @@ Since KeloCAM is in very-very-early stages it is lacking a ton of essential feat
 <br>
 <hr>
 
-[LICENSE](LICENSE) | &copy; 2023 [Lucas Birkert](https://lbirkert.com) 2023
+[LICENSE](LICENSE) | &copy; [Lucas Birkert](https://lbirkert.com) 2023
