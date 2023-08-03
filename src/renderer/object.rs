@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use eframe::wgpu;
 
-use crate::core::primitives::Triangle;
+use crate::core::Triangle;
 
 pub const VERTEX_SIZE: usize = std::mem::size_of::<Vertex>();
 pub const VERTEX_BUFFER_LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::VertexBufferLayout {

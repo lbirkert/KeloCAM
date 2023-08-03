@@ -9,7 +9,7 @@ use eframe::wgpu;
 
 use eframe::wgpu::util::DeviceExt;
 
-use crate::core::primitives::Ray;
+use crate::core::Ray;
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod)]

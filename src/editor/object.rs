@@ -1,4 +1,4 @@
-use crate::core::primitives::Mesh;
+use crate::core::Mesh;
 use egui::vec2;
 
 use super::{icons::Icons, log::Message, state::State};

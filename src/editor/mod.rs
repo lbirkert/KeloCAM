@@ -3,7 +3,7 @@ use egui::{ScrollArea, Vec2};
 use nalgebra::{UnitVector3, Vector3};
 use std::sync::Arc;
 
-use crate::{core::primitives::Plane, renderer};
+use crate::{core::Plane, renderer};
 
 pub mod camera;
 pub mod icons;

@@ -6,7 +6,7 @@ use std::task::Poll;
 use std::{future::Future, io::Cursor};
 
 use crate::{
-    core::primitives::Mesh,
+    core::Mesh,
     editor::{object::Object, Editor},
     view::{prepare::PrepareView, View},
 };

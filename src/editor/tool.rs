@@ -1,7 +1,7 @@
 use nalgebra::{UnitVector3, Vector3};
 
 use crate::{
-    core::primitives::{Axis, Mesh, Ray, Square},
+    core::{Axis, Mesh, Ray, Square},
     renderer,
 };
 

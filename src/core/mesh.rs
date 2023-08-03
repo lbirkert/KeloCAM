@@ -1,4 +1,4 @@
-use std::{collections::HashSet, io::Cursor};
+use std::io::Cursor;
 
 use nalgebra::{Matrix4, UnitVector3, Vector2, Vector3};
 
@@ -49,28 +49,28 @@ impl Mesh {
         Self::z_slice_raw(&self.triangles, z)
     }
 
+    /// TODO: Rewrite
     /// Z-Slice a model. Creates a path representing the outline of this Mesh at this z height.
     pub fn z_slice_raw(triangles: &[Triangle], z: f32) -> Vec<Path2> {
         // Used for connecting the polygons properly
         let mut points: Vec<Vector2<f32>> = Vec::new();
-        let mut segments: HashSet<(usize, usize)> = HashSet::new();
-        let mut indicies: Vec<(usize, bool)> = Vec::new();
+        let mut indicies: Vec<Vec<usize>> = Vec::new();
 
         for triangle in triangles.iter() {
             let a = triangle.a;
             let b = triangle.b;
             let c = triangle.c;
-            let pa = if (a.z > z) != (b.z > z) {
+            let pa = if a.z.min(b.z) < z && a.z.max(b.z) > z {
                 Some(a.xy().lerp(&b.xy(), 1.0 - (z - b.z) / (a.z - b.z)))
             } else {
                 None
             };
-            let pb = if (b.z > z) != (c.z > z) {
+            let pb = if b.z.min(c.z) < z && b.z.max(c.z) > z {
                 Some(b.xy().lerp(&c.xy(), 1.0 - (z - c.z) / (b.z - c.z)))
             } else {
                 None
             };
-            let pc = if (c.z > z) != (a.z > z) {
+            let pc = if c.z.min(a.z) < z && c.z.max(a.z) > z {
                 Some(c.xy().lerp(&a.xy(), 1.0 - (z - a.z) / (c.z - a.z)))
             } else {
                 None
@@ -85,22 +85,12 @@ impl Mesh {
 
             const EPSILON: f32 = 1e-9;
 
-            // Skip 'zero' length segments
-            if (segment.0 - segment.1).magnitude_squared() < EPSILON {
-                continue;
-            }
-
-            let a: Vector2<f32>;
-            let b: Vector2<f32>;
-
             let delta = Vector3::z_axis().cross(&triangle.normal).xy();
-            if (segment.1 - segment.0).dot(&delta) > 0.0 {
-                a = segment.0;
-                b = segment.1;
+            let (a, b) = if (segment.1 - segment.0).dot(&delta) > 0.0 {
+                (segment.0, segment.1)
             } else {
-                b = segment.0;
-                a = segment.1;
-            }
+                (segment.1, segment.0)
+            };
 
             let mut ai = None;
             for (i, point) in points.iter().enumerate() {
@@ -112,7 +102,7 @@ impl Mesh {
 
             let ai = ai.unwrap_or_else(|| {
                 points.push(a);
-                indicies.push((0, false));
+                indicies.push(Vec::new());
                 points.len() - 1
             });
 
@@ -126,18 +116,11 @@ impl Mesh {
 
             let bi = bi.unwrap_or_else(|| {
                 points.push(b);
-                indicies.push((0, false));
+                indicies.push(Vec::new());
                 points.len() - 1
             });
 
-            // Check for zero area path
-            if !segments.remove(&(bi, ai)) {
-                segments.insert((ai, bi));
-            }
-        }
-
-        for segment in segments {
-            indicies[segment.0].0 = segment.1;
+            indicies[ai].push(bi);
         }
 
         if indicies.is_empty() {
@@ -149,12 +132,12 @@ impl Mesh {
 
         let mut pointer = 0;
         loop {
-            if indicies[pointer].1 {
+            if indicies[pointer].is_empty() {
                 paths.push(Path2::new(path));
 
                 let mut found = None;
                 for (i, index) in indicies.iter().enumerate() {
-                    if !index.1 {
+                    if !index.is_empty() {
                         found = Some(i);
                         break;
                     }
@@ -168,8 +151,7 @@ impl Mesh {
                 }
             } else {
                 path.push(points[pointer]);
-                indicies[pointer].1 = true;
-                pointer = indicies[pointer].0;
+                pointer = indicies[pointer].pop().unwrap();
             }
         }
 

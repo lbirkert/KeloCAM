@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::core::primitives::Mesh;
+use crate::core::Mesh;
 
 use super::{object::Object, tool::Tool};
 
