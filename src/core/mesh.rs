@@ -60,17 +60,17 @@ impl Mesh {
             let a = triangle.a;
             let b = triangle.b;
             let c = triangle.c;
-            let pa = if a.z.min(b.z) < z && a.z.max(b.z) > z {
+            let pa = if (a.z > z) != (b.z > z) {
                 Some(a.xy().lerp(&b.xy(), 1.0 - (z - b.z) / (a.z - b.z)))
             } else {
                 None
             };
-            let pb = if b.z.min(c.z) < z && b.z.max(c.z) > z {
+            let pb = if (b.z > z) != (c.z > z) {
                 Some(b.xy().lerp(&c.xy(), 1.0 - (z - c.z) / (b.z - c.z)))
             } else {
                 None
             };
-            let pc = if c.z.min(a.z) < z && c.z.max(a.z) > z {
+            let pc = if (c.z > z) != (a.z > z) {
                 Some(c.xy().lerp(&a.xy(), 1.0 - (z - a.z) / (c.z - a.z)))
             } else {
                 None
@@ -84,6 +84,11 @@ impl Mesh {
             };
 
             const EPSILON: f32 = 1e-9;
+
+            // Skip 'zero' length segments
+            if (segment.0 - segment.1).magnitude_squared() < EPSILON {
+                continue;
+            }
 
             let delta = Vector3::z_axis().cross(&triangle.normal).xy();
             let (a, b) = if (segment.1 - segment.0).dot(&delta) > 0.0 {
