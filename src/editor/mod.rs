@@ -25,6 +25,7 @@ pub struct Editor {
     camera: Camera,
 
     pub z_slice: f32,
+    pub factor: f32,
     pub state: State,
     pub action: Option<Action>,
 }
@@ -278,6 +279,7 @@ impl Editor {
             for points in object.mesh.z_slice(self.z_slice).iter() {
                 renderer::path::generate_closed(
                     &points
+                        .extrude(self.factor)
                         .extend3(
                             &Vector3::new(0.0, 0.0, self.z_slice),
                             &Vector3::x_axis(),
@@ -358,6 +360,7 @@ impl Editor {
         }
 
         ui.add(egui::DragValue::new(&mut self.z_slice).speed(0.01));
+        ui.add(egui::DragValue::new(&mut self.factor).speed(0.01));
 
         let row_height = ui.text_style_height(&egui::TextStyle::Button) + 5.0;
         let max_height =
