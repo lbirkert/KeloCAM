@@ -279,7 +279,8 @@ impl Editor {
             for points in object.mesh.z_slice(self.z_slice).iter() {
                 renderer::path::generate_closed(
                     &points
-                        .extrude(self.factor)
+                        .sdf_contour(self.factor)
+                        .path()
                         .extend3(
                             &Vector3::new(0.0, 0.0, self.z_slice),
                             &Vector3::x_axis(),

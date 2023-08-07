@@ -3,6 +3,7 @@ pub mod mesh;
 pub mod path;
 pub mod plane;
 pub mod ray;
+pub mod sdf;
 pub mod sphere;
 pub mod square;
 pub mod triangle;
