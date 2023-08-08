@@ -34,7 +34,7 @@ impl Line {
         let t = (plane.origin - b).dot(&plane.normal) / s;
 
         // => point not on line
-        if !(0.0..1.0).contains(&t) {
+        if !(0.0..=1.0).contains(&t) {
             return None;
         }
 

@@ -1,4 +1,4 @@
-use std::io::Cursor;
+use std::{collections::HashSet, io::Cursor};
 
 use nalgebra::{Matrix4, UnitVector3, Vector3};
 
@@ -57,6 +57,9 @@ impl Mesh {
         let mut points: Vec<Vector3<f32>> = Vec::new();
         let mut indicies: Vec<Vec<usize>> = Vec::new();
 
+        // Used for sorting out duplicates
+        let mut segments: HashSet<(usize, usize)> = HashSet::new();
+
         for triangle in triangles.iter() {
             let a = triangle.a;
             let b = triangle.b;
@@ -114,7 +117,9 @@ impl Mesh {
                 points.len() - 1
             });
 
-            indicies[ai].push(bi);
+            if segments.insert((ai.min(bi), ai.max(bi))) {
+                indicies[ai].push(bi);
+            }
         }
 
         if indicies.is_empty() {
