@@ -24,17 +24,17 @@ impl Mesh {
 
     /// Perform a ray intersection with this mesh.
     /// Returns the intersection point if any, otherwise None.
-    pub fn intersection(&self, ray: &Ray) -> Option<Vector3<f32>> {
-        Self::intersect_raw(&self.triangles, ray)
+    pub fn intersect_ray(&self, ray: &Ray) -> Option<Vector3<f32>> {
+        Self::intersect_ray_raw(&self.triangles, ray)
     }
 
     /// Perform a ray intersection with this mesh.
     /// Returns the intersection point if any, otherwise None.
-    pub fn intersect_raw(triangles: &[Triangle], ray: &Ray) -> Option<Vector3<f32>> {
+    pub fn intersect_ray_raw(triangles: &[Triangle], ray: &Ray) -> Option<Vector3<f32>> {
         let mut intersection_dist = std::f32::INFINITY;
         let mut intersection_point = None;
         for triangle in triangles.iter() {
-            if let Some(point) = triangle.intersect(ray) {
+            if let Some(point) = triangle.intersect_ray(ray) {
                 let dist = (point - ray.origin).magnitude_squared();
 
                 if dist < intersection_dist {

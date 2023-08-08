@@ -33,7 +33,7 @@ impl Ray {
         circle_normal: &UnitVector3<f32>,
         circle_radius_squared: std::ops::Range<f32>,
     ) -> Option<Vector3<f32>> {
-        let p = Plane::intersect_raw(circle_origin, circle_normal, self)?;
+        let p = Plane::intersect_ray_raw(circle_origin, circle_normal, self)?;
 
         if circle_radius_squared.contains(&(p - circle_origin).magnitude_squared()) {
             Some(p)

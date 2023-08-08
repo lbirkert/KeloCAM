@@ -35,7 +35,7 @@ impl Square {
         normal: &UnitVector3<f32>,
         ray: &Ray,
     ) -> Option<Vector3<f32>> {
-        let p = Plane::intersect_raw(a, normal, ray)?;
+        let p = Plane::intersect_ray_raw(a, normal, ray)?;
 
         let ap = p - a;
 

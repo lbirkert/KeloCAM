@@ -84,8 +84,8 @@ impl Editor {
 
     pub fn move_delta(&self, plane: &Plane, before: Vec2, after: Vec2) -> Option<Vector3<f32>> {
         Some(
-            plane.intersect(&self.camera.screen_ray(after.x, after.y))?
-                - plane.intersect(&self.camera.screen_ray(before.x, before.y))?,
+            plane.intersect_ray(&self.camera.screen_ray(after.x, after.y))?
+                - plane.intersect_ray(&self.camera.screen_ray(before.x, before.y))?,
         )
     }
 
@@ -106,7 +106,7 @@ impl Editor {
             let mut intersection_dist = std::f32::INFINITY;
 
             for (id, object) in self.state.objects.iter() {
-                if let Some(point) = object.mesh.intersection(&camera_ray) {
+                if let Some(point) = object.mesh.intersect_ray(&camera_ray) {
                     // It is not important to calculate the exact distance as we only want
                     // to compare the distance with other intersection points
                     let dist = (camera_ray.origin - point).magnitude_squared();

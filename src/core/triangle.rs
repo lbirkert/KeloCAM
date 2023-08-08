@@ -31,13 +31,13 @@ impl Triangle {
 
     /// Perform a ray intersection with this triangle.
     /// Returns the intersection point if any, otherwise None.
-    pub fn intersect(&self, ray: &Ray) -> Option<Vector3<f32>> {
-        Self::intersect_raw(&self.a, &self.b, &self.c, &self.normal, ray)
+    pub fn intersect_ray(&self, ray: &Ray) -> Option<Vector3<f32>> {
+        Self::intersect_ray_raw(&self.a, &self.b, &self.c, &self.normal, ray)
     }
 
     /// Perform a ray intersection with this triangle.
     /// Returns the intersection point if any, otherwise None.
-    pub fn intersect_raw(
+    pub fn intersect_ray_raw(
         a: &Vector3<f32>,
         b: &Vector3<f32>,
         c: &Vector3<f32>,
@@ -45,7 +45,7 @@ impl Triangle {
         ray: &Ray,
     ) -> Option<Vector3<f32>> {
         // Algorithm from https://math.stackexchange.com/questions/4322/check-whether-a-point-is-within-a-3d-triangle#28552
-        let p = Plane::intersect_raw(a, normal, ray)?;
+        let p = Plane::intersect_ray_raw(a, normal, ray)?;
 
         let n = (b - a).cross(&(c - a));
         let nl = n.magnitude_squared();
