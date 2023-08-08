@@ -1,5 +1,6 @@
 use nalgebra::Vector3;
 
+#[derive(Debug)]
 pub struct Sphere {
     pub origin: Vector3<f32>,
     pub radius: f32,

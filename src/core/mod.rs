@@ -1,4 +1,5 @@
 pub mod axis;
+pub mod line;
 pub mod mesh;
 pub mod path;
 pub mod plane;
@@ -9,6 +10,7 @@ pub mod square;
 pub mod triangle;
 
 pub use axis::Axis;
+pub use line::Line;
 pub use mesh::Mesh;
 pub use path::Path2;
 pub use path::Path3;

@@ -2,6 +2,7 @@ use nalgebra::{UnitVector3, Vector3};
 
 use super::{plane::Plane, ray::Ray};
 
+#[derive(Debug)]
 pub struct Square {
     pub a: Vector3<f32>,
     pub ab: Vector3<f32>,

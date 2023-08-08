@@ -1,5 +1,6 @@
 use nalgebra::{UnitVector3, Vector3};
 
+#[derive(Debug)]
 pub enum Axis {
     X,
     Y,

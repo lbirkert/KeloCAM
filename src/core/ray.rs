@@ -2,6 +2,7 @@ use nalgebra::{UnitVector3, Vector3};
 
 use super::plane::Plane;
 
+#[derive(Debug)]
 pub struct Ray {
     pub normal: Vector3<f32>,
     pub origin: Vector3<f32>,

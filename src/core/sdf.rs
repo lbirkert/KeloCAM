@@ -3,6 +3,7 @@ use nalgebra::Vector2;
 use super::Path2;
 
 // Is the contour of a SDF (sign distance field) of some object at a certain distance.
+#[derive(Debug)]
 pub struct Contour {
     segments: Vec<Segment>,
     distance: f32,

@@ -63,14 +63,20 @@ impl Tool {
         path_indicies: &mut Vec<renderer::path::Index>,
         entity_verticies: &mut Vec<renderer::entity::Vertex>,
     ) {
-        let mut xcolor = [1.0, 0.0, 0.0];
-        let mut ycolor = [0.0, 1.0, 0.0];
-        let mut zcolor = [0.0, 0.0, 1.0];
+        let mut xcolor = [1.0, 0.0, 0.0, 1.0];
+        let mut ycolor = [0.0, 1.0, 0.0, 1.0];
+        let mut zcolor = [0.0, 0.0, 1.0, 1.0];
         if let Some(action) = action {
             match action {
-                Action::Hover(Axis::X) | Action::Transform(Axis::X) => xcolor = [1.0, 0.6, 0.6],
-                Action::Hover(Axis::Y) | Action::Transform(Axis::Y) => ycolor = [0.6, 1.0, 0.6],
-                Action::Hover(Axis::Z) | Action::Transform(Axis::Z) => zcolor = [0.6, 0.6, 1.0],
+                Action::Hover(Axis::X) | Action::Transform(Axis::X) => {
+                    xcolor = [1.0, 0.6, 0.6, 1.0]
+                }
+                Action::Hover(Axis::Y) | Action::Transform(Axis::Y) => {
+                    ycolor = [0.6, 1.0, 0.6, 1.0]
+                }
+                Action::Hover(Axis::Z) | Action::Transform(Axis::Z) => {
+                    zcolor = [0.6, 0.6, 1.0, 1.0]
+                }
             };
         }
 

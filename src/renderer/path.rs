@@ -29,13 +29,13 @@ pub const VERTEX_BUFFER_LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::Vertex
             shader_location: 2,
         },
         wgpu::VertexAttribute {
-            format: wgpu::VertexFormat::Float32x3,
+            format: wgpu::VertexFormat::Float32x4,
             offset: 4 * 9,
             shader_location: 3,
         },
         wgpu::VertexAttribute {
             format: wgpu::VertexFormat::Float32,
-            offset: 4 * 12,
+            offset: 4 * 13,
             shader_location: 4,
         },
     ],
@@ -48,14 +48,14 @@ pub struct Vertex {
     before: [f32; 3],
     pos: [f32; 3],
     after: [f32; 3],
-    color: [f32; 3],
+    color: [f32; 4],
     thickness: f32,
 }
 
 /// Generates verticies for a closed path.
 pub fn generate_closed(
     points: &[Vector3<f32>],
-    color: [f32; 3],
+    color: [f32; 4],
     thickness: f32,
     verticies: &mut Vec<Vertex>,
     indicies: &mut Vec<Index>,
@@ -119,7 +119,7 @@ pub fn generate_closed(
 /// Generates verticies for an open path.
 pub fn generate_open(
     points: &[Vector3<f32>],
-    color: [f32; 3],
+    color: [f32; 4],
     thickness: f32,
     verticies: &mut Vec<Vertex>,
     indicies: &mut Vec<Index>,
@@ -224,7 +224,7 @@ impl Renderer {
 
         let color_target = wgpu::ColorTargetState {
             format,
-            blend: None,
+            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
             write_mask: wgpu::ColorWrites::ALL,
         };
 

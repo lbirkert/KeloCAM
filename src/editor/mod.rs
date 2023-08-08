@@ -276,18 +276,12 @@ impl Editor {
                 );
             }
 
-            for points in object.mesh.z_slice(self.z_slice).iter() {
+            let slice_plane = Plane::new(Vector3::new(0.0, 0.0, self.z_slice), Vector3::z_axis());
+
+            for path in object.mesh.slice(slice_plane).iter() {
                 renderer::path::generate_closed(
-                    &points
-                        .sdf_contour(self.factor)
-                        .path()
-                        .extend3(
-                            &Vector3::new(0.0, 0.0, self.z_slice),
-                            &Vector3::x_axis(),
-                            &Vector3::y_axis(),
-                        )
-                        .points,
-                    [1.0, 0.0, 1.0],
+                    &path.points,
+                    [1.0, 0.0, 1.0, 1.0],
                     0.01,
                     &mut path_verticies,
                     &mut path_indicies,

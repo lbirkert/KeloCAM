@@ -2,7 +2,7 @@ use nalgebra::{UnitVector3, Vector3};
 
 use super::{plane::Plane, ray::Ray};
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Triangle {
     pub a: Vector3<f32>,
     pub b: Vector3<f32>,

@@ -1,10 +1,12 @@
 use std::io::Cursor;
 
-use nalgebra::{Matrix4, UnitVector3, Vector2, Vector3};
+use nalgebra::{Matrix4, UnitVector3, Vector3};
 
-use super::{Path2, Ray, Triangle};
+use crate::core::Line;
 
-#[derive(Clone)]
+use super::{Path3, Plane, Ray, Triangle};
+
+#[derive(Debug, Clone)]
 pub struct Mesh {
     pub triangles: Vec<Triangle>,
 }
@@ -44,39 +46,26 @@ impl Mesh {
         intersection_point
     }
 
-    /// Z-Slice a model. Creates a path representing the outline of this Mesh at this z height.
-    pub fn z_slice(&self, z: f32) -> Vec<Path2> {
-        Self::z_slice_raw(&self.triangles, z)
+    /// Slice a model using a plane. This returns the outline of the cross section.
+    pub fn slice(&self, plane: Plane) -> Vec<Path3> {
+        Self::slice_raw(&self.triangles, plane)
     }
 
-    /// TODO: Rewrite
-    /// Z-Slice a model. Creates a path representing the outline of this Mesh at this z height.
-    pub fn z_slice_raw(triangles: &[Triangle], z: f32) -> Vec<Path2> {
+    /// Slice a model using a plane. This returns the outline of the cross section.
+    pub fn slice_raw(triangles: &[Triangle], plane: Plane) -> Vec<Path3> {
         // Used for connecting the polygons properly
-        let mut points: Vec<Vector2<f32>> = Vec::new();
+        let mut points: Vec<Vector3<f32>> = Vec::new();
         let mut indicies: Vec<Vec<usize>> = Vec::new();
 
         for triangle in triangles.iter() {
             let a = triangle.a;
             let b = triangle.b;
             let c = triangle.c;
-            let pa = if (a.z > z) != (b.z > z) {
-                Some(a.xy().lerp(&b.xy(), 1.0 - (z - b.z) / (a.z - b.z)))
-            } else {
-                None
-            };
-            let pb = if (b.z > z) != (c.z > z) {
-                Some(b.xy().lerp(&c.xy(), 1.0 - (z - c.z) / (b.z - c.z)))
-            } else {
-                None
-            };
-            let pc = if (c.z > z) != (a.z > z) {
-                Some(c.xy().lerp(&a.xy(), 1.0 - (z - a.z) / (c.z - a.z)))
-            } else {
-                None
-            };
+            let pa = Line::intersect_plane_raw(&a, &b, &plane);
+            let pb = Line::intersect_plane_raw(&b, &c, &plane);
+            let pc = Line::intersect_plane_raw(&c, &a, &plane);
 
-            let segment = match (pa, pb, pc) {
+            let seg = match (pa, pb, pc) {
                 (Some(pa), Some(pb), _) => (pa, pb),
                 (_, Some(pb), Some(pc)) => (pb, pc),
                 (Some(pa), _, Some(pc)) => (pc, pa),
@@ -86,15 +75,15 @@ impl Mesh {
             const EPSILON: f32 = 1e-9;
 
             // Skip 'zero' length segments
-            if (segment.0 - segment.1).magnitude_squared() < EPSILON {
+            if (seg.0 - seg.1).magnitude_squared() < EPSILON {
                 continue;
             }
 
-            let delta = Vector3::z_axis().cross(&triangle.normal).xy();
-            let (a, b) = if (segment.1 - segment.0).dot(&delta) > 0.0 {
-                (segment.0, segment.1)
+            let delta = plane.normal.cross(&triangle.normal);
+            let (a, b) = if (seg.1 - seg.0).dot(&delta) > 0.0 {
+                (seg.0, seg.1)
             } else {
-                (segment.1, segment.0)
+                (seg.1, seg.0)
             };
 
             let mut ai = None;
@@ -138,7 +127,7 @@ impl Mesh {
         let mut pointer = 0;
         loop {
             if indicies[pointer].is_empty() {
-                paths.push(Path2::new(path));
+                paths.push(Path3::new_sanitize(path));
 
                 let mut found = None;
                 for (i, index) in indicies.iter().enumerate() {

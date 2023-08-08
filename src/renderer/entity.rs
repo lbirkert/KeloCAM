@@ -14,7 +14,7 @@ pub const VERTEX_BUFFER_LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::Vertex
         },
         // Normal vector
         wgpu::VertexAttribute {
-            format: wgpu::VertexFormat::Float32x3,
+            format: wgpu::VertexFormat::Float32x4,
             offset: 4 * 3,
             shader_location: 1,
         },
@@ -26,7 +26,7 @@ pub const VERTEX_BUFFER_LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::Vertex
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod)]
 pub struct Vertex {
     pos: [f32; 3],
-    color: [f32; 3],
+    color: [f32; 4],
 }
 
 /// Generates a cube entity
@@ -34,7 +34,7 @@ pub struct Vertex {
 pub fn generate_cube(
     scale: f32,
     origin: &Vector3<f32>,
-    color: [f32; 3],
+    color: [f32; 4],
     verticies: &mut Vec<Vertex>,
 ) {
     let a = Vector3::new(scale * 0.5, scale * 0.5, scale * 0.5);
@@ -91,7 +91,7 @@ pub fn generate_arrow(
     scale: f32,
     origin: &Vector3<f32>,
     direction: &UnitVector3<f32>,
-    color: [f32; 3],
+    color: [f32; 4],
     verticies: &mut Vec<Vertex>,
 ) {
     let mut na = direction.cross(&Vector3::new(-direction.z, direction.x, direction.y));

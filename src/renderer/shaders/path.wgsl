@@ -1,6 +1,6 @@
 struct VertexOut {
     @builtin(position) pos: vec4<f32>,
-    @location(1) color: vec3<f32>,
+    @location(1) color: vec4<f32>,
 };
 
 struct VertexIn {
@@ -8,7 +8,7 @@ struct VertexIn {
     @location(1) pos: vec3<f32>,
     @location(2) after: vec3<f32>,
 
-    @location(3) color: vec3<f32>,
+    @location(3) color: vec4<f32>,
     @location(4) thickness: f32,
 };
 
@@ -73,6 +73,6 @@ fn vs_main(@builtin(vertex_index) v_idx: u32, in: VertexIn) -> VertexOut {
 
 
 @fragment
-fn fs_main(@location(1) color: vec3<f32>) -> @location(0) vec4<f32> {
-    return vec4<f32>(color, 1.0);
+fn fs_main(@location(1) color: vec4<f32>) -> @location(0) vec4<f32> {
+    return color;
 }
