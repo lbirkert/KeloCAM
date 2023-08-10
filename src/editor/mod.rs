@@ -3,6 +3,7 @@ use egui::{ScrollArea, Vec2};
 use nalgebra::{UnitVector3, Vector3};
 use std::sync::Arc;
 
+use crate::renderer::path;
 use crate::{core::Plane, renderer};
 
 pub mod camera;
@@ -267,18 +268,20 @@ impl Editor {
                 mesh.translate(&-selection_origin);
                 self.state.tool.apply(&mut mesh);
                 mesh.translate(&selection_origin);
-                renderer::object::generate(&mesh.triangles, [1.0, 0.0, 0.0], &mut object_verticies);
+                renderer::object::generate(&mesh.triangles, [1.0, 0.5, 0.0], &mut object_verticies);
             } else {
-                renderer::object::generate(
-                    &object.mesh.triangles,
-                    [1.0, 1.0, 1.0],
-                    &mut object_verticies,
-                );
+                //renderer::object::generate(
+                //    &object.mesh.triangles,
+                //    [1.0, 1.0, 1.0],
+                //    &mut object_verticies,
+                //);
             }
 
             let slice_plane = Plane::new(Vector3::new(0.0, 0.0, self.z_slice), Vector3::z_axis());
 
-            for path in object.mesh.slice(slice_plane).iter() {
+            let mesh = object.mesh.extrude_xy(self.factor);
+            renderer::object::generate(&mesh.triangles, [1.0, 0.0, 1.0], &mut object_verticies);
+            for path in mesh.slice(slice_plane).iter() {
                 renderer::path::generate_closed(
                     &path.points,
                     [1.0, 0.0, 1.0, 1.0],
@@ -287,6 +290,37 @@ impl Editor {
                     &mut path_indicies,
                 );
             }
+        }
+
+        // Generate visual camera center
+        {
+            let o = self.camera.position.xzy();
+            let scale = 1.0 / self.camera.zoom * 10.0 / self.camera.height;
+            let x = Vector3::x_axis().scale(scale);
+            let y = Vector3::y_axis().scale(scale);
+            let z = Vector3::z_axis().scale(scale);
+
+            path::generate_open(
+                &[o + x, o - x],
+                [1.0, 0.3, 0.3, 0.9],
+                6.0 / self.camera.height,
+                &mut path_verticies,
+                &mut path_indicies,
+            );
+            path::generate_open(
+                &[o + y, o - y],
+                [1.0, 0.3, 0.3, 0.9],
+                6.0 / self.camera.height,
+                &mut path_verticies,
+                &mut path_indicies,
+            );
+            path::generate_open(
+                &[o + z, o - z],
+                [1.0, 0.3, 0.3, 0.9],
+                6.0 / self.camera.height,
+                &mut path_verticies,
+                &mut path_indicies,
+            );
         }
 
         let entity_vertex_count = entity_verticies.len() as u32;
