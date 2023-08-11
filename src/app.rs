@@ -1,3 +1,4 @@
+use nalgebra::Vector3;
 use pollster::FutureExt;
 
 use rfd::{AsyncFileDialog, FileHandle};
@@ -46,7 +47,13 @@ impl eframe::App for KeloApp {
 
                 if let Some(handle) = handle {
                     async {
-                        if let Ok(mesh) = Mesh::from_stl(&mut Cursor::new(&handle.read().await)) {
+                        if let Ok(mut mesh) = Mesh::from_stl(&mut Cursor::new(&handle.read().await))
+                        {
+                            let (inf, sup) = mesh.inf_sup();
+                            let size = sup - inf;
+                            // Don't center on z axis
+                            let transform = -inf - Vector3::new(size.x, size.y, 0.0).scale(0.5);
+                            mesh.translate(&transform);
                             self.editor.state.push(
                                 self.editor
                                     .state
