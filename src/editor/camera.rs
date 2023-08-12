@@ -196,7 +196,7 @@ impl Camera {
         Ray::new(pos.xzy(), normal.xzy())
     }
 
-    pub fn handle(&mut self, ui: &mut egui::Ui, rect: egui::Rect, response: &egui::Response) {
+    pub fn handle(&mut self, ui: &egui::Ui, rect: egui::Rect, response: &egui::Response) {
         self.resize(rect.size().x, rect.size().y);
 
         const SAFE_FRAC_PI_2: f32 = std::f32::consts::FRAC_PI_2 - 0.0001;

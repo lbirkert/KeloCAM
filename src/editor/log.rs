@@ -67,7 +67,7 @@ impl Log {
         }
     }
 
-    pub fn cursor_mut<'a>(&'a mut self) -> &'a mut Message {
+    pub fn cursor_mut(&mut self) -> &mut Message {
         &mut self.messages[self.cursor]
     }
 

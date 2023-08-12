@@ -146,12 +146,10 @@ impl Editor {
                         self.log.redo();
                         self.state.apply(self.log.cursor_mut());
                     }
-                } else {
-                    if self.log.can_undo() {
+                } else if self.log.can_undo() {
                         self.state.apply(self.log.cursor_mut());
                         self.log.undo();
                     }
-                }
             }
         }
 
