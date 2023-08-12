@@ -54,11 +54,12 @@ impl eframe::App for KeloApp {
                             // Don't center on z axis
                             let transform = -inf - Vector3::new(size.x, size.y, 0.0).scale(0.5);
                             mesh.translate(&transform);
-                            self.editor.state.push(
-                                self.editor
-                                    .state
-                                    .insert_object(Object::new(mesh, handle.file_name())),
-                            );
+                            let mut message = self
+                                .editor
+                                .state
+                                .insert_object(Object::new(mesh, handle.file_name()));
+                            self.editor.state.apply(&mut message);
+                            self.editor.log.push(message);
                         }
                     }
                     .block_on();

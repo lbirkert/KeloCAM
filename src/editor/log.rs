@@ -25,7 +25,7 @@ pub const UNDO_CAPACITY: usize = 20;
 /// The stack allocated application log. It stores the last n actions that occured for undoing
 /// and redoing, where n is the number stored in the UNDO_CAPACITY constant.
 pub struct Log {
-    pub actions: Vec<Message>,
+    pub messages: Vec<Message>,
     pub cursor: usize,
     before: usize,
     after: usize,
@@ -41,7 +41,7 @@ impl Log {
         }
 
         Self {
-            actions,
+            messages: actions,
             cursor: 0,
             before: 0,
             after: 0,
@@ -54,17 +54,21 @@ impl Log {
             return None;
         }
 
-        self.cursor = (self.cursor + 1) % self.actions.len();
+        self.cursor = (self.cursor + 1) % self.messages.len();
         self.after = 0;
 
-        if self.before == self.actions.len() {
-            std::mem::swap(&mut message, &mut self.actions[self.cursor]);
+        if self.before == self.messages.len() {
+            std::mem::swap(&mut message, &mut self.messages[self.cursor]);
             Some(message)
         } else {
             self.before += 1;
-            self.actions[self.cursor] = message;
+            self.messages[self.cursor] = message;
             None
         }
+    }
+
+    pub fn cursor_mut<'a>(&'a mut self) -> &'a mut Message {
+        &mut self.messages[self.cursor]
     }
 
     pub fn can_undo(&self) -> bool {
@@ -73,8 +77,11 @@ impl Log {
 
     /// Retracts the cursor
     pub fn undo(&mut self) {
-        self.cursor = self.cursor.checked_sub(1).unwrap_or(self.actions.len() - 1);
-        self.after = (self.after + 1).min(self.actions.len());
+        self.cursor = self
+            .cursor
+            .checked_sub(1)
+            .unwrap_or(self.messages.len() - 1);
+        self.after = (self.after + 1).min(self.messages.len());
         self.before -= 1;
     }
 
@@ -84,8 +91,8 @@ impl Log {
 
     /// Advances the cursor
     pub fn redo(&mut self) {
-        self.cursor = (self.cursor + 1) % self.actions.len();
-        self.before = (self.before + 1).min(self.actions.len());
+        self.cursor = (self.cursor + 1) % self.messages.len();
+        self.before = (self.before + 1).min(self.messages.len());
         self.after -= 1;
     }
 }

@@ -1,10 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use super::{
-    log::{Log, Message},
-    object::Object,
-    tool::Tool,
-};
+use super::{log::Message, object::Object, tool::Tool};
 
 #[derive(Default)]
 pub struct State {
@@ -15,7 +11,6 @@ pub struct State {
     pub tool: Tool,
 
     id_counter: u32,
-    log: Log,
 }
 
 impl State {
@@ -74,34 +69,11 @@ impl State {
             .map(|id| (id, &self.objects[id]))
     }
 
-    /// Undo
-    pub fn undo(&mut self) {
-        if self.log.can_undo() {
-            self.apply();
-            self.log.undo();
-        }
-    }
-
-    /// Redo
-    pub fn redo(&mut self) {
-        if self.log.can_redo() {
-            self.log.redo();
-            self.apply();
-        }
-    }
-
-    /// Pushes a message onto the state. This includes applying the message & revoking objects out of the
-    /// object table if the overwritten message is a delete message (aka. the deletion cannot be undone)
-    pub fn push(&mut self, message: Message) {
-        self.log.push(message);
-        self.apply();
-    }
-
     /// Applies (aka. executes) the message under the cursor on this state. Most messages are
     /// double-cycled, which means that when the return value of this function gets applied,
     /// the state before the first application persists.
-    pub fn apply(&mut self) {
-        match &mut self.log.actions[self.log.cursor] {
+    pub fn apply(&mut self, message: &mut Message) {
+        match message {
             Message::Object {
                 ref mut id,
                 ref mut object,

@@ -25,6 +25,7 @@ fn vs_main(in: VertexIn) -> VertexOut {
     var out: VertexOut;
 
     out.color = in.color;
+    out.color = in.normal * 0.5 + vec3(0.5);
     out.normal = in.normal.xzy;
     out.world_pos = in.pos.xzy;
 

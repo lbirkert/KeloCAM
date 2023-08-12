@@ -27,8 +27,10 @@ pub struct Editor {
 
     pub z_slice: f32,
     pub factor: f32,
-    pub state: State,
     pub action: Option<Action>,
+
+    pub state: State,
+    pub log: Log,
 }
 
 impl Editor {
@@ -140,9 +142,15 @@ impl Editor {
                 messages.push(Message::Tool(Tool::scale()));
             } else if ui.input(|i| i.key_pressed(egui::Key::Z) && i.modifiers.command) {
                 if ui.input(|i| i.modifiers.shift) {
-                    self.state.redo();
+                    if self.log.can_redo() {
+                        self.log.redo();
+                        self.state.apply(self.log.cursor_mut());
+                    }
                 } else {
-                    self.state.undo();
+                    if self.log.can_undo() {
+                        self.state.apply(self.log.cursor_mut());
+                        self.log.undo();
+                    }
                 }
             }
         }
@@ -277,11 +285,11 @@ impl Editor {
                 //);
             }
 
-            let slice_plane = Plane::new(Vector3::new(0.0, 0.0, self.z_slice), Vector3::z_axis());
+            //let slice_plane = Plane::new(Vector3::new(0.0, 0.0, self.z_slice), Vector3::z_axis());
 
             let mesh = object.mesh.extrude_xy(self.factor);
             renderer::object::generate(&mesh.triangles, [1.0, 0.0, 1.0], &mut object_verticies);
-            for path in mesh.slice(slice_plane).iter() {
+            /*for path in mesh.slice(slice_plane).iter() {
                 renderer::path::generate_closed(
                     &path.points,
                     [1.0, 0.0, 1.0, 1.0],
@@ -289,7 +297,7 @@ impl Editor {
                     &mut path_verticies,
                     &mut path_indicies,
                 );
-            }
+            }*/
         }
 
         // Generate visual camera center

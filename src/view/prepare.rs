@@ -26,8 +26,9 @@ impl PrepareView {
             .frame(egui::Frame::default())
             .show(ctx, |ui| editor.ui(ui, &mut messages));
 
-        for message in messages {
-            editor.state.push(message);
+        for mut message in messages {
+            editor.state.apply(&mut message);
+            editor.log.push(message);
         }
     }
 }

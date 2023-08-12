@@ -141,8 +141,8 @@ pub struct Camera {
     pub pitch: f32,
     pub zoom: f32,
 
-    width: f32,
-    height: f32,
+    pub width: f32,
+    pub height: f32,
 
     pub projection: Projection,
 }
