@@ -147,9 +147,9 @@ impl Editor {
                         self.state.apply(self.log.cursor_mut());
                     }
                 } else if self.log.can_undo() {
-                        self.state.apply(self.log.cursor_mut());
-                        self.log.undo();
-                    }
+                    self.state.apply(self.log.cursor_mut());
+                    self.log.undo();
+                }
             }
         }
 
