@@ -7,18 +7,18 @@ pub mod camera;
 pub mod icons;
 pub mod log;
 pub mod object;
+pub mod renderer;
 pub mod state;
 pub mod tool;
-pub mod renderer;
 
 pub use camera::Camera;
 pub use icons::Icons;
+use kelocam_core::{BoundingBox, Plane};
 pub use log::Log;
 pub use log::Message;
 pub use state::State;
 pub use tool::Action;
 pub use tool::Tool;
-use kelocam_core::{BoundingBox, Plane};
 
 #[derive(Default)]
 pub struct Editor {
@@ -85,7 +85,10 @@ impl Editor {
     pub fn move_delta(&self, plane: &Plane, before: Vec2, after: Vec2) -> Option<Vector3<f32>> {
         Some(
             self.camera.screen_ray(after.x, after.y).intersect(plane)?
-                - self.camera.screen_ray(before.x, before.y).intersect(plane)?,
+                - self
+                    .camera
+                    .screen_ray(before.x, before.y)
+                    .intersect(plane)?,
         )
     }
 
@@ -219,7 +222,7 @@ impl Editor {
                             mesh.translate(&-selection_origin);
                             self.state.tool.apply(&mut mesh);
                             // Snap to plate
-                            let min  = mesh.bb_min();
+                            let min = mesh.bb_min();
                             mesh.translate(
                                 &(selection_origin
                                     + Vector3::new(0.0, 0.0, -min.z - selection_origin.z)),
@@ -458,4 +461,3 @@ impl Renderer {
         }
     }
 }
-
