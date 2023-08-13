@@ -46,7 +46,7 @@ impl Ray {
     where
         T: RayIntersection,
     {
-        object.intersect_ray(&self)
+        object.intersect_ray(self)
     }
 }
 
