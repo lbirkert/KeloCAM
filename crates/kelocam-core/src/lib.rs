@@ -7,6 +7,7 @@ pub mod ray;
 pub mod sphere;
 pub mod square;
 pub mod triangle;
+pub mod geometry;
 
 pub use axis::Axis;
 pub use line::Line;
@@ -17,3 +18,5 @@ pub use ray::Ray;
 pub use sphere::Sphere;
 pub use square::Square;
 pub use triangle::Triangle;
+pub use geometry::Geometry;
+pub use geometry::BoundingBox;

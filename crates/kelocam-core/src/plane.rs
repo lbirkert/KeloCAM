@@ -1,5 +1,7 @@
 use nalgebra::{UnitVector3, Vector3};
 
+use crate::ray::RayIntersection;
+
 use super::ray::Ray;
 
 #[derive(Debug)]
@@ -11,12 +13,6 @@ pub struct Plane {
 impl Plane {
     pub fn new(origin: Vector3<f32>, normal: UnitVector3<f32>) -> Self {
         Self { normal, origin }
-    }
-
-    /// Perform a ray intersection with this plane.
-    /// Returns the intersection point if any, otherwise None.
-    pub fn intersect_ray(&self, ray: &Ray) -> Option<Vector3<f32>> {
-        Self::intersect_ray_raw(&self.origin, &self.normal, ray)
     }
 
     /// Perform a ray intersection with this plane.
@@ -41,5 +37,11 @@ impl Plane {
         }
 
         Some(ray.origin + ray.normal.scale(t))
+    }
+}
+
+impl RayIntersection for Plane {
+    fn intersect_ray(&self, ray: &Ray) -> Option<Vector3<f32>> {
+        Self::intersect_ray_raw(&self.origin, &self.normal, ray)
     }
 }

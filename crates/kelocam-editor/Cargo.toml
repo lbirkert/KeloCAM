@@ -1,0 +1,16 @@
+[package]
+name = "kelocam-editor"
+version.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bytemuck = "1.13.1"
+eframe = { version = "0.22.0", features = [ "wgpu" ] }
+egui = "0.22.0"
+image = "0.24.7"
+nalgebra = "0.32.3"
+
+kelocam-core = { path = "../kelocam-core/" }
+nalgebra-glm = "0.18.0"

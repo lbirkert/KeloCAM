@@ -1,42 +1,12 @@
-[package]
-name = "kelocam"
+[workspace]
+resolver = "2"
+members = [
+    "crates/*",
+]
+
+[workspace.package]
 version = "0.1.0"
-authors = ["Lucas Birkert <kekontheworld@gmail.com>"]
 edition = "2021"
-rust-version = "1.65"
-
-
-[dependencies]
-egui = "0.22.0"
-eframe = { version = "0.22.0", default-features = false, features = [
-    "default_fonts", # Embed the default egui fonts.
-    "wgpu",
-] }
-serialport = "4.2.0"
-stl = "0.2.1"
-bytemuck = { version = "1.13.1", features = ["derive"] }
-tracing-subscriber = "0.3"
-nalgebra = "0.32.3"
-nalgebra-glm = "0.18.0"
-rfd = "0.11.4"
-futures = "0.3.28"
-pollster = "0.3.0"
-byteorder = "1.4.3"
-image = "0.24.6"
-rstar = "0.11.0"
 
 [profile.release]
-opt-level = 2 # fast and small wasm
-
-# Optimize all dependencies even in debug builds:
-[profile.dev.package."*"]
-opt-level = 2
-[patch.crates-io]
-
-# If you want to use the bleeding edge version of egui and eframe:
-# egui = { git = "https://github.com/emilk/egui", branch = "master" }
-# eframe = { git = "https://github.com/emilk/egui", branch = "master" }
-
-# If you fork https://github.com/emilk/egui you can test with:
-# egui = { path = "../egui/crates/egui" }
-# eframe = { path = "../egui/crates/eframe" }
+lto = true

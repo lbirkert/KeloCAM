@@ -1,5 +1,5 @@
-use crate::editor::icons::Icons;
-use crate::editor::Editor;
+use kelocam_editor::icons::Icons;
+use kelocam_editor::Editor;
 
 #[derive(Default)]
 pub struct PrepareView {

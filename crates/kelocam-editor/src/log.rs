@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::core::Mesh;
+use kelocam_core::Mesh;
 
 use super::{object::Object, tool::Tool};
 

@@ -6,11 +6,9 @@ use std::pin::Pin;
 use std::task::Poll;
 use std::{future::Future, io::Cursor};
 
-use crate::{
-    core::Mesh,
-    editor::{object::Object, Editor},
-    view::{prepare::PrepareView, View},
-};
+use crate::view::{PrepareView, View};
+use kelocam_core::{BoundingBox, Mesh};
+use kelocam_editor::{object::Object, Editor};
 
 pub struct KeloApp {
     file_dialog: Option<Pin<Box<dyn Future<Output = Option<FileHandle>>>>>,
@@ -49,10 +47,10 @@ impl eframe::App for KeloApp {
                     async {
                         if let Ok(mut mesh) = Mesh::from_stl(&mut Cursor::new(&handle.read().await))
                         {
-                            let (inf, sup) = mesh.inf_sup();
-                            let size = sup - inf;
+                            let (min, max) = mesh.bb_min_max();
+                            let size = max - min;
                             // Don't center on z axis
-                            let transform = -inf - Vector3::new(size.x, size.y, 0.0).scale(0.5);
+                            let transform = -min - Vector3::new(size.x, size.y, 0.0).scale(0.5);
                             mesh.translate(&transform);
                             let mut message = self
                                 .editor

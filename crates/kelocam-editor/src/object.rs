@@ -1,5 +1,5 @@
-use crate::core::Mesh;
 use egui::vec2;
+use kelocam_core::Mesh;
 
 use super::{icons::Icons, log::Message, state::State};
 

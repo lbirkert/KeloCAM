@@ -1,5 +1,7 @@
 use nalgebra::Vector3;
 
+use crate::{BoundingBox, Geometry};
+
 use super::Plane;
 
 #[derive(Debug)]
@@ -41,3 +43,18 @@ impl Line {
         Some(b.lerp(a, t))
     }
 }
+
+impl BoundingBox for Line {
+    fn bb_min(&self) -> Vector3<f32> {
+        self.a.inf(&self.b)
+    }
+
+    fn bb_max(&self) -> Vector3<f32> {
+        self.a.sup(&self.b)
+    }
+
+    fn bb_min_max(&self) -> (Vector3<f32>, Vector3<f32>) {
+        self.a.inf_sup(&self.b)
+    }
+}
+impl Geometry for Line {}

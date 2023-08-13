@@ -3,15 +3,13 @@ use egui::{ScrollArea, Vec2};
 use nalgebra::{UnitVector3, Vector3};
 use std::sync::Arc;
 
-use crate::renderer::path;
-use crate::{core::Plane, renderer};
-
 pub mod camera;
 pub mod icons;
 pub mod log;
 pub mod object;
 pub mod state;
 pub mod tool;
+pub mod renderer;
 
 pub use camera::Camera;
 pub use icons::Icons;
@@ -20,13 +18,12 @@ pub use log::Message;
 pub use state::State;
 pub use tool::Action;
 pub use tool::Tool;
+use kelocam_core::{BoundingBox, Plane};
 
 #[derive(Default)]
 pub struct Editor {
     camera: Camera,
 
-    pub z_slice: f32,
-    pub factor: f32,
     pub action: Option<Action>,
 
     pub state: State,
@@ -87,8 +84,8 @@ impl Editor {
 
     pub fn move_delta(&self, plane: &Plane, before: Vec2, after: Vec2) -> Option<Vector3<f32>> {
         Some(
-            plane.intersect_ray(&self.camera.screen_ray(after.x, after.y))?
-                - plane.intersect_ray(&self.camera.screen_ray(before.x, before.y))?,
+            self.camera.screen_ray(after.x, after.y).intersect(plane)?
+                - self.camera.screen_ray(before.x, before.y).intersect(plane)?,
         )
     }
 
@@ -109,7 +106,7 @@ impl Editor {
             let mut intersection_dist = std::f32::INFINITY;
 
             for (id, object) in self.state.objects.iter() {
-                if let Some(point) = object.mesh.intersect_ray(&camera_ray) {
+                if let Some(point) = camera_ray.intersect(&object.mesh) {
                     // It is not important to calculate the exact distance as we only want
                     // to compare the distance with other intersection points
                     let dist = (camera_ray.origin - point).magnitude_squared();
@@ -158,9 +155,9 @@ impl Editor {
         let selection_origin = {
             if self.state.selected() {
                 for (_, object) in self.state.iter_selection() {
-                    let (oinf, osup) = object.mesh.inf_sup();
-                    selection_inf = selection_inf.inf(&oinf);
-                    selection_sup = selection_sup.sup(&osup);
+                    let (min, max) = object.mesh.bb_min_max();
+                    selection_inf = selection_inf.inf(&min);
+                    selection_sup = selection_sup.sup(&max);
                 }
 
                 (selection_inf + selection_sup).scale(0.5)
@@ -222,10 +219,10 @@ impl Editor {
                             mesh.translate(&-selection_origin);
                             self.state.tool.apply(&mut mesh);
                             // Snap to plate
-                            let (inf, _) = mesh.inf_sup();
+                            let min  = mesh.bb_min();
                             mesh.translate(
                                 &(selection_origin
-                                    + Vector3::new(0.0, 0.0, -inf.z - selection_origin.z)),
+                                    + Vector3::new(0.0, 0.0, -min.z - selection_origin.z)),
                             );
 
                             messages.push(Message::Mesh { id: *id, mesh });
@@ -276,26 +273,12 @@ impl Editor {
                 mesh.translate(&selection_origin);
                 renderer::object::generate(&mesh.triangles, [1.0, 0.5, 0.0], &mut object_verticies);
             } else {
-                //renderer::object::generate(
-                //    &object.mesh.triangles,
-                //    [1.0, 1.0, 1.0],
-                //    &mut object_verticies,
-                //);
-            }
-
-            //let slice_plane = Plane::new(Vector3::new(0.0, 0.0, self.z_slice), Vector3::z_axis());
-
-            let mesh = object.mesh.extrude_xy(self.factor);
-            renderer::object::generate(&mesh.triangles, [1.0, 0.0, 1.0], &mut object_verticies);
-            /*for path in mesh.slice(slice_plane).iter() {
-                renderer::path::generate_closed(
-                    &path.points,
-                    [1.0, 0.0, 1.0, 1.0],
-                    0.01,
-                    &mut path_verticies,
-                    &mut path_indicies,
+                renderer::object::generate(
+                    &object.mesh.triangles,
+                    [1.0, 1.0, 1.0],
+                    &mut object_verticies,
                 );
-            }*/
+            }
         }
 
         // Generate visual camera center
@@ -306,21 +289,21 @@ impl Editor {
             let y = Vector3::y_axis().scale(scale);
             let z = Vector3::z_axis().scale(scale);
 
-            path::generate_open(
+            renderer::path::generate_open(
                 &[o + x, o - x],
                 [1.0, 0.3, 0.3, 0.9],
                 6.0 / self.camera.height,
                 &mut path_verticies,
                 &mut path_indicies,
             );
-            path::generate_open(
+            renderer::path::generate_open(
                 &[o + y, o - y],
                 [1.0, 0.3, 0.3, 0.9],
                 6.0 / self.camera.height,
                 &mut path_verticies,
                 &mut path_indicies,
             );
-            path::generate_open(
+            renderer::path::generate_open(
                 &[o + z, o - z],
                 [1.0, 0.3, 0.3, 0.9],
                 6.0 / self.camera.height,
@@ -393,9 +376,6 @@ impl Editor {
         if self.state.objects.is_empty() {
             ui.label("Click on File > Open to import a model");
         }
-
-        ui.add(egui::DragValue::new(&mut self.z_slice).speed(0.01));
-        ui.add(egui::DragValue::new(&mut self.factor).speed(0.01));
 
         let row_height = ui.text_style_height(&egui::TextStyle::Button) + 5.0;
         let max_height =
@@ -478,3 +458,4 @@ impl Renderer {
         }
     }
 }
+

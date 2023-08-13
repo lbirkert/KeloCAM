@@ -1,5 +1,7 @@
 use nalgebra::{UnitVector3, Vector3};
 
+use crate::ray::RayIntersection;
+
 use super::{plane::Plane, ray::Ray};
 
 #[derive(Debug, Clone)]
@@ -27,12 +29,6 @@ impl Triangle {
             Vector3::from(stl.v3).scale(0.1),
             UnitVector3::new_normalize(Vector3::from(stl.normal)),
         )
-    }
-
-    /// Perform a ray intersection with this triangle.
-    /// Returns the intersection point if any, otherwise None.
-    pub fn intersect_ray(&self, ray: &Ray) -> Option<Vector3<f32>> {
-        Self::intersect_ray_raw(&self.a, &self.b, &self.c, &self.normal, ray)
     }
 
     /// Perform a ray intersection with this triangle.
@@ -65,5 +61,11 @@ impl Triangle {
         } else {
             None
         }
+    }
+}
+
+impl RayIntersection for Triangle {
+    fn intersect_ray(&self, ray: &Ray) -> Option<Vector3<f32>> {
+        Self::intersect_ray_raw(&self.a, &self.b, &self.c, &self.normal, ray)
     }
 }

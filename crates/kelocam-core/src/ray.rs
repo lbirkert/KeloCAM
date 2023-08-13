@@ -4,12 +4,12 @@ use super::plane::Plane;
 
 #[derive(Debug)]
 pub struct Ray {
-    pub normal: Vector3<f32>,
+    pub normal: UnitVector3<f32>,
     pub origin: Vector3<f32>,
 }
 
 impl Ray {
-    pub fn new(origin: Vector3<f32>, normal: Vector3<f32>) -> Self {
+    pub fn new(origin: Vector3<f32>, normal: UnitVector3<f32>) -> Self {
         assert!((1.0 - normal.dot(&normal)).abs() < 0.001);
         Self { origin, normal }
     }
@@ -41,4 +41,15 @@ impl Ray {
             None
         }
     }
+
+    pub fn intersect<T>(&self, object: &T) -> Option<Vector3<f32>>
+    where
+        T: RayIntersection,
+    {
+        object.intersect_ray(&self)
+    }
+}
+
+pub trait RayIntersection {
+    fn intersect_ray(&self, ray: &Ray) -> Option<Vector3<f32>>;
 }

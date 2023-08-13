@@ -9,7 +9,7 @@ use eframe::wgpu;
 
 use eframe::wgpu::util::DeviceExt;
 
-use crate::core::Ray;
+use kelocam_core::Ray;
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod)]
@@ -193,7 +193,7 @@ impl Camera {
         let normal = -rot.transform_vector(&self.projection.normal(x, y, self.zoom));
         let pos = self.eye() + rot.transform_vector(&self.projection.pos(x, y, self.zoom));
 
-        Ray::new(pos.xzy(), normal.xzy())
+        Ray::new(pos.xzy(), UnitVector3::new_unchecked(normal.xzy()))
     }
 
     pub fn handle(&mut self, ui: &egui::Ui, rect: egui::Rect, response: &egui::Response) {
