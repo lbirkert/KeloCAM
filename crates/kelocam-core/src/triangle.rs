@@ -1,6 +1,6 @@
 use nalgebra::{UnitVector3, Vector3};
 
-use crate::ray::RayIntersection;
+use crate::{ray::RayIntersection, BoundingBox, Geometry};
 
 use super::{plane::Plane, ray::Ray};
 
@@ -69,3 +69,15 @@ impl RayIntersection for Triangle {
         Self::intersect_ray_raw(&self.a, &self.b, &self.c, &self.normal, ray)
     }
 }
+
+impl BoundingBox for Triangle {
+    fn bb_min(&self) -> Vector3<f32> {
+        self.a.inf(&self.b.inf(&self.c))
+    }
+
+    fn bb_max(&self) -> Vector3<f32> {
+        self.a.sup(&self.b.sup(&self.c))
+    }
+}
+
+impl Geometry for Triangle {}

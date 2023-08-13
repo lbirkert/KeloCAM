@@ -1,5 +1,7 @@
 use nalgebra::Vector3;
 
+use crate::{BoundingBox, Geometry};
+
 #[derive(Debug)]
 pub struct Path3 {
     pub points: Vec<Vector3<f32>>,
@@ -38,3 +40,23 @@ impl Path3 {
         }
     }
 }
+
+impl BoundingBox for Path3 {
+    fn bb_min(&self) -> Vector3<f32> {
+        let mut min = Vector3::from_element(std::f32::INFINITY);
+        for point in self.points.iter() {
+            min = min.inf(point);
+        }
+        min
+    }
+
+    fn bb_max(&self) -> Vector3<f32> {
+        let mut max = Vector3::from_element(std::f32::NEG_INFINITY);
+        for point in self.points.iter() {
+            max = max.inf(point);
+        }
+        max
+    }
+}
+
+impl Geometry for Path3 {}

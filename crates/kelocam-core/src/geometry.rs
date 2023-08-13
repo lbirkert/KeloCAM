@@ -1,6 +1,6 @@
 use nalgebra::Vector3;
 
-pub trait Geometry: BoundingBox {}
+pub trait Geometry {}
 
 pub trait BoundingBox {
     /// Compute the minimum coordinate of the bounding box.

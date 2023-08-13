@@ -41,12 +41,12 @@ impl Mesh {
     }
 
     /// Slice a model using a plane. This returns the outline of the cross section.
-    pub fn slice(&self, plane: Plane) -> Vec<Path3> {
+    pub fn slice(&self, plane: &Plane) -> Vec<Path3> {
         Self::slice_raw(&self.triangles, plane)
     }
 
     /// Slice a model using a plane. This returns the outline of the cross section.
-    pub fn slice_raw(triangles: &[Triangle], plane: Plane) -> Vec<Path3> {
+    pub fn slice_raw(triangles: &[Triangle], plane: &Plane) -> Vec<Path3> {
         const EPSILON: f32 = 1e-9;
 
         // Used for connecting the polygons properly. TODO: Look into hashing
@@ -60,9 +60,9 @@ impl Mesh {
             let a = triangle.a;
             let b = triangle.b;
             let c = triangle.c;
-            let pa = Line::intersect_plane_raw(&a, &b, &plane);
-            let pb = Line::intersect_plane_raw(&b, &c, &plane);
-            let pc = Line::intersect_plane_raw(&c, &a, &plane);
+            let pa = Line::intersect_plane_raw(&a, &b, plane);
+            let pb = Line::intersect_plane_raw(&b, &c, plane);
+            let pc = Line::intersect_plane_raw(&c, &a, plane);
 
             let seg = match (pa, pb, pc) {
                 (Some(pa), Some(pb), _) => (pa, pb),
@@ -218,53 +218,6 @@ impl BoundingBox for Mesh {
         }
         max
     }
-
-    fn bb_min_max(&self) -> (Vector3<f32>, Vector3<f32>) {
-        let mut min = Vector3::from_element(std::f32::INFINITY);
-        let mut max = Vector3::from_element(std::f32::NEG_INFINITY);
-        for triangle in self.triangles.iter() {
-            min = min.inf(&triangle.a.inf(&triangle.b.inf(&triangle.c)));
-            max = max.sup(&triangle.a.sup(&triangle.b.sup(&triangle.c)));
-        }
-        (min, max)
-    }
 }
 
 impl Geometry for Mesh {}
-
-// TODO: move to triangle.rs
-#[derive(Debug)]
-pub enum Vertex {
-    A,
-    B,
-    C,
-}
-
-impl Vertex {
-    #[inline]
-    pub fn get<'a>(&self, triangle: &'a Triangle) -> &'a Vector3<f32> {
-        match self {
-            Self::A => &triangle.a,
-            Self::B => &triangle.b,
-            Self::C => &triangle.c,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum Edge {
-    A,
-    B,
-    C,
-}
-
-impl Edge {
-    #[inline]
-    pub fn get<'a>(&self, triangle: &'a Triangle) -> (&'a Vector3<f32>, &'a Vector3<f32>) {
-        match self {
-            Self::A => (&triangle.a, &triangle.b),
-            Self::B => (&triangle.b, &triangle.c),
-            Self::C => (&triangle.c, &triangle.a),
-        }
-    }
-}

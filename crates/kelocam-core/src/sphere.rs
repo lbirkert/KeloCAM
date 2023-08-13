@@ -1,5 +1,7 @@
 use nalgebra::Vector3;
 
+use crate::{BoundingBox, Geometry};
+
 #[derive(Debug)]
 pub struct Sphere {
     pub origin: Vector3<f32>,
@@ -11,3 +13,15 @@ impl Sphere {
         Self { origin, radius }
     }
 }
+
+impl BoundingBox for Sphere {
+    fn bb_min(&self) -> Vector3<f32> {
+        self.origin - Vector3::from_element((self.radius * self.radius / 3.0).sqrt())
+    }
+
+    fn bb_max(&self) -> Vector3<f32> {
+        self.origin + Vector3::from_element((self.radius * self.radius / 3.0).sqrt())
+    }
+}
+
+impl Geometry for Sphere {}

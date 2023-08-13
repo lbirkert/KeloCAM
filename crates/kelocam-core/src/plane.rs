@@ -1,8 +1,6 @@
 use nalgebra::{UnitVector3, Vector3};
 
-use crate::ray::RayIntersection;
-
-use super::ray::Ray;
+use crate::{ray::RayIntersection, Geometry, Ray};
 
 #[derive(Debug)]
 pub struct Plane {
@@ -45,3 +43,5 @@ impl RayIntersection for Plane {
         Self::intersect_ray_raw(&self.origin, &self.normal, ray)
     }
 }
+
+impl Geometry for Plane {}
