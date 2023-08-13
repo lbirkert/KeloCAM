@@ -1,8 +1,6 @@
 use nalgebra::Vector3;
 
-use crate::{BoundingBox, Geometry};
-
-use super::Plane;
+use super::{BoundingBox, Geometry, Plane};
 
 #[derive(Debug)]
 pub struct Line {

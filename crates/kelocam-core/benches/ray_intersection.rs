@@ -1,7 +1,7 @@
 #![feature(test)]
 
 extern crate test;
-use kelocam_core::{Plane, Ray, Square, Triangle};
+use kelocam_core::primitives::{Plane, Ray, Square, Triangle};
 use nalgebra::{UnitVector3, Vector3};
 use test::Bencher;
 

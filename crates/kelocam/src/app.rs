@@ -7,7 +7,7 @@ use std::task::Poll;
 use std::{future::Future, io::Cursor};
 
 use crate::view::{PrepareView, View};
-use kelocam_core::{BoundingBox, Mesh};
+use kelocam_core::primitives::{BoundingBox, Mesh};
 use kelocam_editor::{object::Object, Editor};
 
 pub struct KeloApp {

@@ -1,8 +1,6 @@
 use nalgebra::{UnitVector3, Vector3};
 
-use crate::{ray::RayIntersection, BoundingBox, Geometry};
-
-use super::{plane::Plane, ray::Ray};
+use super::{ray::RayIntersection, BoundingBox, Geometry, Plane, Ray};
 
 #[derive(Debug, Clone)]
 pub struct Triangle {

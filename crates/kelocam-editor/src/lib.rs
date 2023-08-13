@@ -3,6 +3,8 @@ use egui::{ScrollArea, Vec2};
 use nalgebra::{UnitVector3, Vector3};
 use std::sync::Arc;
 
+use kelocam_core::primitives::{BoundingBox, Plane};
+
 pub mod camera;
 pub mod icons;
 pub mod log;
@@ -13,7 +15,6 @@ pub mod tool;
 
 pub use camera::Camera;
 pub use icons::Icons;
-use kelocam_core::{BoundingBox, Plane};
 pub use log::Log;
 pub use log::Message;
 pub use state::State;

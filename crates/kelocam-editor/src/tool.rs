@@ -1,7 +1,8 @@
 use nalgebra::{UnitVector3, Vector3};
 
+use kelocam_core::primitives::{Axis, Mesh, Ray, Square};
+
 use crate::renderer;
-use kelocam_core::{Axis, Mesh, Ray, Square};
 
 /// An action state a tool can be in.
 pub enum Action {

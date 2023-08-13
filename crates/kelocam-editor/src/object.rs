@@ -1,5 +1,6 @@
 use egui::vec2;
-use kelocam_core::Mesh;
+
+use kelocam_core::primitives::Mesh;
 
 use super::{icons::Icons, log::Message, state::State};
 

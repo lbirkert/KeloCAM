@@ -1,15 +1,10 @@
-use nalgebra::*;
+use bytemuck;
+use eframe::wgpu::{self, util::DeviceExt};
+use nalgebra::{Matrix4, UnitVector3, Vector3};
 use nalgebra_glm;
-
 use std::sync::Arc;
 
-use bytemuck;
-
-use eframe::wgpu;
-
-use eframe::wgpu::util::DeviceExt;
-
-use kelocam_core::Ray;
+use kelocam_core::primitives::Ray;
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod)]

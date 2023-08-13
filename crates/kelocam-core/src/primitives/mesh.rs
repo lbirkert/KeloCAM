@@ -2,9 +2,7 @@ use std::{collections::HashSet, io::Cursor};
 
 use nalgebra::{Matrix4, UnitVector3, Vector3};
 
-use crate::{ray::RayIntersection, BoundingBox, Geometry};
-
-use super::{Line, Path3, Plane, Ray, Triangle};
+use super::{ray::RayIntersection, BoundingBox, Geometry, Line, Path3, Plane, Ray, Triangle};
 
 #[derive(Debug, Clone)]
 pub struct Mesh {

@@ -1,6 +1,6 @@
 use nalgebra::{UnitVector3, Vector3};
 
-use crate::{ray::RayIntersection, Geometry, Ray};
+use super::{ray::RayIntersection, Geometry, Ray};
 
 #[derive(Debug)]
 pub struct Plane {

@@ -1,13 +1,8 @@
 [package]
-name = "kelocam-core"
+name = "kelocam-postprocessor"
 version.workspace = true
 edition.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-nalgebra = "0.32.3"
-stl = "0.2.1"
-
-[dev-dependencies]
-nalgebra = { version = "0.32.3", features = [ "rand" ] }

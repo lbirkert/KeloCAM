@@ -1,6 +1,6 @@
 use nalgebra::{UnitVector3, Vector3};
 
-use super::plane::Plane;
+use super::Plane;
 
 #[derive(Debug)]
 pub struct Ray {

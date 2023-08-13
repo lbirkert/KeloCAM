@@ -1,6 +1,6 @@
 use nalgebra::Vector3;
 
-use crate::{BoundingBox, Geometry};
+use super::{BoundingBox, Geometry};
 
 #[derive(Debug)]
 pub struct Path3 {

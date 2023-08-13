@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use kelocam_core::Mesh;
+use kelocam_core::primitives::Mesh;
 
 use super::{object::Object, tool::Tool};
 
