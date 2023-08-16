@@ -1,6 +1,6 @@
-use nalgebra::Vector3;
+use nalgebra::{UnitVector3, Vector3};
 
-use super::{BoundingBox, Geometry, Plane};
+use super::{plane::PlaneIntersection, BoundingBox, Geometry};
 
 #[derive(Debug)]
 pub struct Line {
@@ -12,33 +12,30 @@ impl Line {
     pub fn new(a: Vector3<f32>, b: Vector3<f32>) -> Self {
         Self { a, b }
     }
+}
 
-    /// Returns the intersection of this line with a plane (if any).
-    pub fn intersect_plane(&self, plane: &Plane) -> Option<Vector3<f32>> {
-        Self::intersect_plane_raw(&self.a, &self.b, plane)
-    }
-
+impl PlaneIntersection for Line {
     /// Returns the intersection of a line with start and endpoints on a plane (if any).
-    pub fn intersect_plane_raw(
-        a: &Vector3<f32>,
-        b: &Vector3<f32>,
-        plane: &Plane,
+    fn intersect_plane_raw(
+        &self,
+        origin: &Vector3<f32>,
+        normal: &UnitVector3<f32>,
     ) -> Option<Vector3<f32>> {
-        let s = (a - b).dot(&plane.normal);
+        let s = (self.a - self.b).dot(normal);
 
         // => line and plane parallel
         if s == 0.0 {
             return None;
         }
 
-        let t = (plane.origin - b).dot(&plane.normal) / s;
+        let t = (origin - self.b).dot(normal) / s;
 
         // => point not on line
         if !(0.0..=1.0).contains(&t) {
             return None;
         }
 
-        Some(b.lerp(a, t))
+        Some(self.b.lerp(&self.a, t))
     }
 }
 

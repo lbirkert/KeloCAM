@@ -1,6 +1,6 @@
 use nalgebra::{UnitVector3, Vector3};
 
-use super::{ray::RayIntersection, Geometry, Ray};
+use super::{Geometry, Ray};
 
 #[derive(Debug)]
 pub struct Plane {
@@ -36,11 +36,23 @@ impl Plane {
 
         Some(ray.origin + ray.normal.scale(t))
     }
+
+    pub fn intersect<T>(&self, entity: &T) -> Option<Vector3<f32>>
+    where
+        T: PlaneIntersection,
+    {
+        entity.intersect_plane(self)
+    }
 }
 
-impl RayIntersection for Plane {
-    fn intersect_ray(&self, ray: &Ray) -> Option<Vector3<f32>> {
-        Self::intersect_ray_raw(&self.origin, &self.normal, ray)
+pub trait PlaneIntersection {
+    fn intersect_plane_raw(
+        &self,
+        origin: &Vector3<f32>,
+        normal: &UnitVector3<f32>,
+    ) -> Option<Vector3<f32>>;
+    fn intersect_plane(&self, plane: &Plane) -> Option<Vector3<f32>> {
+        self.intersect_plane_raw(&plane.origin, &plane.normal)
     }
 }
 

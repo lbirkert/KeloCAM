@@ -1,6 +1,6 @@
 use nalgebra::{UnitVector3, Vector3};
 
-use super::{ray::RayIntersection, BoundingBox, Geometry, Plane, Ray};
+use super::{plane::PlaneIntersection, BoundingBox, Geometry};
 
 #[derive(Debug, Clone)]
 pub struct Triangle {
@@ -31,15 +31,18 @@ impl Triangle {
 
     /// Perform a ray intersection with this triangle.
     /// Returns the intersection point if any, otherwise None.
-    pub fn intersect_ray_raw(
+    pub fn intersect_raw<T>(
         a: &Vector3<f32>,
         b: &Vector3<f32>,
         c: &Vector3<f32>,
         normal: &UnitVector3<f32>,
-        ray: &Ray,
-    ) -> Option<Vector3<f32>> {
+        entity: &T,
+    ) -> Option<Vector3<f32>>
+    where
+        T: PlaneIntersection,
+    {
         // Algorithm from https://math.stackexchange.com/questions/4322/check-whether-a-point-is-within-a-3d-triangle#28552
-        let p = Plane::intersect_ray_raw(a, normal, ray)?;
+        let p = entity.intersect_plane_raw(a, normal)?;
 
         let n = (b - a).cross(&(c - a));
         let nl = n.magnitude_squared();
@@ -60,11 +63,14 @@ impl Triangle {
             None
         }
     }
-}
 
-impl RayIntersection for Triangle {
-    fn intersect_ray(&self, ray: &Ray) -> Option<Vector3<f32>> {
-        Self::intersect_ray_raw(&self.a, &self.b, &self.c, &self.normal, ray)
+    /// Perform a ray intersection with this triangle.
+    /// Returns the intersection point if any, otherwise None.
+    pub fn intersect<T>(&self, entity: &T) -> Option<Vector3<f32>>
+    where
+        T: PlaneIntersection,
+    {
+        Self::intersect_raw(&self.a, &self.b, &self.c, &self.normal, entity)
     }
 }
 

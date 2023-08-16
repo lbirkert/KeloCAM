@@ -1,6 +1,6 @@
 use nalgebra::{UnitVector3, Vector3};
 
-use super::Plane;
+use super::{plane::PlaneIntersection, Plane};
 
 #[derive(Debug)]
 pub struct Ray {
@@ -10,7 +10,6 @@ pub struct Ray {
 
 impl Ray {
     pub fn new(origin: Vector3<f32>, normal: UnitVector3<f32>) -> Self {
-        assert!((1.0 - normal.dot(&normal)).abs() < 0.001);
         Self { origin, normal }
     }
 
@@ -41,15 +40,60 @@ impl Ray {
             None
         }
     }
+}
 
-    pub fn intersect<T>(&self, object: &T) -> Option<Vector3<f32>>
-    where
-        T: RayIntersection,
-    {
-        object.intersect_ray(self)
+impl PlaneIntersection for Ray {
+    fn intersect_plane_raw(
+        &self,
+        origin: &Vector3<f32>,
+        normal: &UnitVector3<f32>,
+    ) -> Option<Vector3<f32>> {
+        let a = normal.dot(&self.normal);
+
+        // Ray and plane parallel
+        if a == 0.0 {
+            return None;
+        }
+
+        let t = (origin - self.origin).dot(normal) / a;
+
+        // Plane is behind ray
+        if t < 0.0 {
+            return None;
+        }
+
+        Some(self.origin + self.normal.scale(t))
     }
 }
 
-pub trait RayIntersection {
-    fn intersect_ray(&self, ray: &Ray) -> Option<Vector3<f32>>;
+// Works like a ray but also in the other direction
+#[derive(Debug)]
+pub struct InfiniteLine {
+    pub normal: UnitVector3<f32>,
+    pub origin: Vector3<f32>,
+}
+
+impl InfiniteLine {
+    pub fn new(origin: Vector3<f32>, normal: UnitVector3<f32>) -> Self {
+        Self { origin, normal }
+    }
+}
+
+impl PlaneIntersection for InfiniteLine {
+    fn intersect_plane_raw(
+        &self,
+        origin: &Vector3<f32>,
+        normal: &UnitVector3<f32>,
+    ) -> Option<Vector3<f32>> {
+        let a = normal.dot(&self.normal);
+
+        // Line and plane parallel
+        if a == 0.0 {
+            return None;
+        }
+
+        let t = (origin - self.origin).dot(normal) / a;
+
+        Some(self.origin + self.normal.scale(t))
+    }
 }

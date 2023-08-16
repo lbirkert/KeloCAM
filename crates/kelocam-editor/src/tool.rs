@@ -233,7 +233,7 @@ impl Tool {
 
         let normal = UnitVector3::new_normalize(ortho.cross(axis.vector()));
 
-        Square::intersect_ray_raw(
+        Square::intersect_raw(
             &(origin - ortho.scale(0.5)),
             &ortho,
             &axis.vector().scale(scale),

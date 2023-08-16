@@ -1,6 +1,6 @@
 use nalgebra::{UnitVector3, Vector3};
 
-use super::{ray::RayIntersection, BoundingBox, Geometry, Plane, Ray};
+use super::{plane::PlaneIntersection, BoundingBox, Geometry};
 
 #[derive(Debug)]
 pub struct Square {
@@ -20,16 +20,19 @@ impl Square {
         Self { a, ab, ac, normal }
     }
 
-    /// Perform a ray intersection with this square.
+    /// Perform an intersection with this square.
     /// Returns the intersection point if any, otherwise None.
-    pub fn intersect_ray_raw(
+    pub fn intersect_raw<T>(
         a: &Vector3<f32>,
         ab: &Vector3<f32>,
         ac: &Vector3<f32>,
         normal: &UnitVector3<f32>,
-        ray: &Ray,
-    ) -> Option<Vector3<f32>> {
-        let p = Plane::intersect_ray_raw(a, normal, ray)?;
+        entity: &T,
+    ) -> Option<Vector3<f32>>
+    where
+        T: PlaneIntersection,
+    {
+        let p = entity.intersect_plane_raw(a, normal)?;
 
         let ap = p - a;
 
@@ -41,11 +44,14 @@ impl Square {
             None
         }
     }
-}
 
-impl RayIntersection for Square {
-    fn intersect_ray(&self, ray: &Ray) -> Option<Vector3<f32>> {
-        Self::intersect_ray_raw(&self.a, &self.ab, &self.ac, &self.normal, ray)
+    /// Perform an intersection with this square.
+    /// Returns the intersection point if any, otherwise None.
+    pub fn intersect<T>(&self, entity: &T) -> Option<Vector3<f32>>
+    where
+        T: PlaneIntersection,
+    {
+        Self::intersect_raw(&self.a, &self.ab, &self.ac, &self.normal, entity)
     }
 }
 

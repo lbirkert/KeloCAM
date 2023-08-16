@@ -23,7 +23,7 @@ pub fn ray_triangle_intersection(bencher: &mut Bencher) {
         ray = Ray::new(origin, normal);
     }
 
-    bencher.iter(|| test::black_box(&ray).intersect(test::black_box(&triangle)));
+    bencher.iter(|| test::black_box(&triangle).intersect(test::black_box(&ray)));
 }
 
 #[bench]
@@ -42,7 +42,7 @@ pub fn ray_plane_intersection(bencher: &mut Bencher) {
         ray = Ray::new(origin, normal);
     }
 
-    bencher.iter(|| test::black_box(&ray).intersect(test::black_box(&plane)))
+    bencher.iter(|| test::black_box(&plane).intersect(test::black_box(&ray)))
 }
 
 #[bench]
@@ -63,5 +63,5 @@ pub fn ray_square_intersection(bencher: &mut Bencher) {
         ray = Ray::new(origin, normal);
     }
 
-    bencher.iter(|| test::black_box(&ray).intersect(test::black_box(&square)))
+    bencher.iter(|| test::black_box(&square).intersect(test::black_box(&ray)))
 }

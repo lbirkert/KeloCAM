@@ -2,7 +2,7 @@ use std::{collections::HashSet, io::Cursor};
 
 use nalgebra::{Matrix4, UnitVector3, Vector3};
 
-use super::{ray::RayIntersection, BoundingBox, Geometry, Line, Path3, Plane, Ray, Triangle};
+use super::{plane::PlaneIntersection, BoundingBox, Geometry, Line, Path3, Plane, Ray, Triangle};
 
 #[derive(Debug, Clone)]
 pub struct Mesh {
@@ -20,22 +20,47 @@ impl Mesh {
             .map(|stl| Self::new(stl.triangles.into_iter().map(Triangle::from_stl).collect()))
     }
 
-    /// Perform a ray intersection with this mesh.
-    /// Returns the intersection point if any, otherwise None.
-    pub fn intersect_ray_raw(triangles: &[Triangle], ray: &Ray) -> Option<Vector3<f32>> {
-        let mut intersection_dist = std::f32::INFINITY;
-        let mut intersection_point = None;
+    /// Perform an intersection with this mesh.
+    /// Returns the intersection points.
+    pub fn intersect_raw<T>(triangles: &[Triangle], entity: &T) -> Vec<Vector3<f32>>
+    where
+        T: PlaneIntersection,
+    {
+        let mut intersections = Vec::new();
         for triangle in triangles.iter() {
-            if let Some(point) = triangle.intersect_ray(ray) {
-                let dist = (point - ray.origin).magnitude_squared();
-
-                if dist < intersection_dist {
-                    intersection_dist = dist;
-                    intersection_point = Some(point);
-                }
+            if let Some(point) = triangle.intersect(entity) {
+                intersections.push(point)
             }
         }
-        intersection_point
+        intersections
+    }
+
+    /// Perform an intersection with this mesh.
+    /// Returns the intersection points.
+    pub fn intersect<T>(&self, entity: &T) -> Vec<Vector3<f32>>
+    where
+        T: PlaneIntersection,
+    {
+        Self::intersect_raw(&self.triangles, entity)
+    }
+
+    /// Perform a ray intersection with this mesh. Returns the point closest to the ray origin.
+    pub fn intersect_ray_raw(triangles: &[Triangle], ray: &Ray) -> Option<Vector3<f32>> {
+        let mut intersection_dist = std::f32::INFINITY;
+        let mut intersection = None;
+        for point in Self::intersect_raw(triangles, ray) {
+            let dist = (point - ray.origin).magnitude_squared();
+            if dist < intersection_dist {
+                intersection_dist = dist;
+                intersection = Some(point);
+            }
+        }
+        intersection
+    }
+
+    /// Perform a ray intersection with this mesh. Returns the point closest to the ray origin.
+    pub fn intersect_ray(&self, ray: &Ray) -> Option<Vector3<f32>> {
+        Self::intersect_ray_raw(&self.triangles, ray)
     }
 
     /// Slice a model using a plane. This returns the outline of the cross section.
@@ -58,9 +83,9 @@ impl Mesh {
             let a = triangle.a;
             let b = triangle.b;
             let c = triangle.c;
-            let pa = Line::intersect_plane_raw(&a, &b, plane);
-            let pb = Line::intersect_plane_raw(&b, &c, plane);
-            let pc = Line::intersect_plane_raw(&c, &a, plane);
+            let pa = plane.intersect(&Line::new(a, b));
+            let pb = plane.intersect(&Line::new(b, c));
+            let pc = plane.intersect(&Line::new(c, a));
 
             let seg = match (pa, pb, pc) {
                 (Some(pa), Some(pb), _) => (pa, pb),
@@ -191,12 +216,6 @@ impl Mesh {
             triangle.c = mat.transform_vector(&triangle.c);
             triangle.normal = UnitVector3::new_unchecked(mat.transform_vector(&triangle.normal));
         }
-    }
-}
-
-impl RayIntersection for Mesh {
-    fn intersect_ray(&self, ray: &Ray) -> Option<Vector3<f32>> {
-        Self::intersect_ray_raw(&self.triangles, ray)
     }
 }
 
