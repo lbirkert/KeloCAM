@@ -9,6 +9,12 @@ Simple and easy-to-use CAM software for hobbyists and semi-professionals
 
 <br>
 
+****
+
+# ATTENTION: This Project is currently on pause, as I do not have the resources to maintain it.
+
+****
+
 ## About this Project
 
 KeloCAM is CNC/CAM software written to make CNC routing and milling more approachable to the average user. It was written in [Rust](https://rust-lang.org) using the new [WebGPU](https://wgpu.rs) technology. The UI code is provided by [egui](https://egui.rs), a robust intermediate UI framework.
